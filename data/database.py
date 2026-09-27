@@ -18,7 +18,7 @@ class Database:
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS games_bot_migrations (version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now());
                 CREATE TABLE IF NOT EXISTS games_bot_economy (
-                    user_id bigint PRIMARY KEY, points integer NOT NULL DEFAULT 0,
+                    user_id numeric(20,0) PRIMARY KEY, points bigint NOT NULL DEFAULT 0,
                     last_login date, consecutive_days smallint NOT NULL DEFAULT 0,
                     gamble_date date, gamble_count smallint NOT NULL DEFAULT 0
                 );
