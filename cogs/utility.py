@@ -11,12 +11,14 @@ from core.constants import USER_BADGES_EMOJI, TIMEZONE_MAP, STATUS_EMOJIS
 from core.state import state
 from ui.embeds import create_embed
 from services.network.weather_api import get_weather_forecast, get_city_id_fuzzy
+from ui.views_utility import TimeHelpView
 
 class Utility(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     @commands.command(name="rate", aliases=["レート", "れーと", "為替"])
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def rate(self, ctx, amount_str: str, currency_code: str):
         try:
             amount = float(amount_str)
@@ -53,7 +55,8 @@ class Utility(commands.Cog):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(embed=create_embed("引数不足", "金額と通貨コードを指定してください。\n例: `rate 100 USD`", discord.Color.orange(), "warning"))
 
-    @commands.command(name="tenki", aliases=["weather", "てんき"])
+    @commands.command(name="tenki", aliases=["weather", "てんき", "天気", "テンキ"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def tenki(self, ctx, *, city_name_query: str):
         async with ctx.typing():
             city_id = await get_city_id_fuzzy(city_name_query, state.weather_city_id_map)
@@ -80,7 +83,8 @@ class Utility(commands.Cog):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(embed=create_embed("引数不足", "都市名を指定してください。\n例: `tenki 東京`", discord.Color.orange(), "warning"))
 
-    @commands.command(name="totusi", aliases=["突死"])
+    @commands.command(name="totusi", aliases=["突然の死", "とつし", "突死"])
+    @commands.cooldown(1, 3, commands.BucketType.user)
     async def totusi(self, ctx, *, text: str):
         clean = text.replace("　", " ")
         width = sum(2 if unicodedata.east_asian_width(c) in 'FWA' else 1 for c in clean)
@@ -95,17 +99,19 @@ class Utility(commands.Cog):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(embed=create_embed("引数不足", "文字列を指定してください。\n例: `totusi すごい`", discord.Color.orange(), "warning"))
 
-    @commands.command(name="info")
+    @commands.command(name="info", aliases=["詳細", "いんふぉ"])
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def info(self, ctx, member: discord.Member = None):
         target = member or ctx.author
         embed = create_embed(f"{target.display_name} の情報", "", target.color, "info")
         if target.avatar: embed.set_thumbnail(url=target.avatar.url)
         embed.add_field(name="ユーザー名", value=f"`{target.name}`", inline=True)
-        embed.add_field(name="ID", value=f"`{target.id}`", inline=True)
+        embed.add_field(name="ユーザーID", value=f"`{target.id}`", inline=True)
         embed.add_field(name="Bot?", value="はい" if target.bot else "いいえ", inline=True)
-        embed.add_field(name="アカウント作成", value=f"<t:{int(target.created_at.timestamp())}:D>", inline=True)
+        embed.add_field(name="アカウント作成日", value=f"<t:{int(target.created_at.timestamp())}:D>", inline=True)
         if isinstance(target, discord.Member):
-            embed.add_field(name="参加日", value=f"<t:{int(target.joined_at.timestamp())}:R>", inline=True)
+            if target.joined_at:
+                embed.add_field(name="サーバー参加日", value=f"<t:{int(target.joined_at.timestamp())}:R>", inline=True)
             
             badges = []
             if target.public_flags:
@@ -121,21 +127,27 @@ class Utility(commands.Cog):
         
         await ctx.send(embed=embed)
 
-    @commands.command(name="time")
+    @commands.command(name="time", aliases=["時間", "たいむ", "タイム", "じかん"])
+    @commands.cooldown(1, 3, commands.BucketType.user)
     async def time(self, ctx, code: str = None):
         if not code:
             now = datetime.datetime.now(JST).strftime('%H:%M:%S')
-            await ctx.send(embed=create_embed("現在時刻 (日本)", f"**{now}**\n\n{STATUS_EMOJIS['info']} 国コード指定で世界時計を表示可。", discord.Color.blue(), "info"))
+            description = f"現在の日本時間は **{now}** です。\n\n{STATUS_EMOJIS['info']} 国コードを指定すると、その国の時刻を表示できます。(例: `time US`)"
+            await ctx.send(embed=create_embed("現在時刻 (日本時間)", description, discord.Color.blue(), "info"), view=TimeHelpView())
             return
         
         tz = TIMEZONE_MAP.get(code.upper())
-        if not tz: return await ctx.send(embed=create_embed("エラー", f"`{code}` は見つかりませんでした。", discord.Color.orange(), "warning"))
+        if not tz:
+            description = f"`{code}` は見つかりませんでした。\n利用可能な国コードの一覧は下のボタンから確認できます。"
+            return await ctx.send(embed=create_embed("無効な国コード", description, discord.Color.orange(), "warning"), view=TimeHelpView())
         
         dt = datetime.datetime.now(pytz.timezone(tz))
         off = f"UTC{dt.utcoffset().total_seconds()/3600:+g}"
-        await ctx.send(embed=create_embed(f"{code} の時刻", f"**{dt.strftime('%Y-%m-%d %H:%M:%S')}** ({off})", discord.Color.blue(), "success"))
+        city_name = tz.split('/')[-1].replace('_', ' ')
+        await ctx.send(embed=create_embed(f"{city_name} の現在時刻", f"**{dt.strftime('%Y-%m-%d %H:%M:%S')}** ({off})", discord.Color.blue(), "success"))
 
-    @commands.command(name="ping")
+    @commands.command(name="ping", aliases=["ピング", "接続速度", "ぴんぐ"])
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def ping(self, ctx):
         await ctx.send(embed=create_embed("Ping", f"現在の応答速度: **{self.bot.latency * 1000:.2f}ms**", discord.Color.green(), "success"))
 

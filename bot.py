@@ -45,20 +45,23 @@ class SugiyamaBot(commands.Bot):
 
     async def on_ready(self):
         print(f'[System]Login: {self.user.name} ({self.user.id})')
+        await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="杉山啓太Bot by(*'▽')"))
 
     async def on_message(self, message: discord.Message):
         # Botのメッセージは無視
         if message.author.bot or not message.guild:
             return
 
-        content = message.content.strip()
-        if not content:
+        original_content = message.content
+        content_lower_stripped = original_content.strip().lower()
+        if not content_lower_stripped:
             return
 
         # 1. 管理者用: setchannel はチャンネル許可状態に関わらず反応させる
-        if content.lower().startswith("setchannel"):
-            message.content = f"{DUMMY_PREFIX}{content}"
+        if content_lower_stripped.startswith("setchannel"):
+            message.content = f"{DUMMY_PREFIX}setchannel"
             await self.process_commands(message)
+            message.content = original_content
             return
 
         # 2. 許可されたチャンネル以外は無視
@@ -66,7 +69,7 @@ class SugiyamaBot(commands.Bot):
             return
 
         # 3. プレフィックスなしコマンドの処理
-        parts = content.split(" ", 1)
+        parts = original_content.split(" ", 1)
         cmd_name = parts[0].lower()
 
         is_special = False
@@ -76,7 +79,7 @@ class SugiyamaBot(commands.Bot):
                 cmd_name = "leave"
                 is_special = True
             elif sub in ["point", "points"]:
-                cmd_name = "point"
+                cmd_name = "othello point"
                 is_special = True
 
         # コマンドが存在するか確認
@@ -84,12 +87,12 @@ class SugiyamaBot(commands.Bot):
         if command_obj:
             # プレフィックスを内部的に付与して実行
             if is_special:
-                extra = content.split(" ", 2)[2] if len(content.split(" ", 2)) > 2 else ""
-                message.content = f"{DUMMY_PREFIX}{cmd_name} {extra}"
+                message.content = f"{DUMMY_PREFIX}{cmd_name}"
             else:
-                message.content = f"{DUMMY_PREFIX}{content}"
+                message.content = f"{DUMMY_PREFIX}{original_content}"
             
             await self.process_commands(message)
+            message.content = original_content
 
     async def on_reaction_add(self, reaction: discord.Reaction, user: discord.User):
         if user.bot: return

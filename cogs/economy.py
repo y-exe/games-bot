@@ -89,7 +89,7 @@ class Economy(commands.Cog):
         bet_amount = 0
         if is_whale: bet_amount = random.randint(current_points // 4, current_points // 2)
         elif current_points > 0: bet_amount = random.randint(max(1, current_points // 3), current_points)
-        else: bet = 100 if -100 <= current_points <= 0 else random.randint(abs(current_points)//6, abs(current_points)//2)
+        else: bet_amount = 100 if -100 <= current_points <= 0 else random.randint(abs(current_points)//6, abs(current_points)//2)
         def get_multiplier():
             roll = random.random()
             if roll < 0.02: base = random.uniform(5.01, 10.0)

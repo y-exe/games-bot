@@ -171,7 +171,7 @@ class Games(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="othello", aliases=["オセロ"])
+    @commands.command(name="othello", aliases=["おせろ", "オセロ"])
     async def othello(self, ctx, opponent: discord.Member = None):
         if opponent and (opponent == ctx.author or (opponent.bot and opponent.id != self.bot.user.id)):
             return await ctx.send(embed=create_embed("エラー", "不正な対戦相手です。", status="warning"))
@@ -182,7 +182,8 @@ class Games(commands.Cog):
         view = OthelloSizeSelectView(ctx.author, opponent)
         await ctx.send(embed=create_embed("オセロ 盤面選択", desc, discord.Color.green(), "info"), view=view)
 
-    @commands.command(name="4moku", aliases=["cf", "四目並べ", "4目並べ"])
+    @commands.command(name="connectfour", aliases=["cf", "四目並べ", "4moku", "4nara", "よんもく", "4目並べ"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def connectfour(self, ctx, opponent: discord.Member = None):
         if opponent and (opponent == ctx.author or (opponent.bot and opponent.id != self.bot.user.id)):
             return await ctx.send(embed=create_embed("エラー", "不正な対戦相手です。", status="warning"))
@@ -216,14 +217,15 @@ class Games(commands.Cog):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(embed=create_embed("引数不足", "ベット額と対戦相手を指定してください。\n例: `highlow 100 @相手`", status="warning"))
 
-    @commands.command(name="janken", aliases=["じゃんけん"])
+    @commands.command(name="janken", aliases=["じゃんけん", "ジャンケン"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def janken(self, ctx):
         desc = f"{ctx.author.mention} がじゃんけんを開始しました。\nまず自分の手を選んでください。"
         view = JankenChoiceView(ctx.author.id)
         msg = await ctx.send(embed=create_embed("じゃんけん", desc, discord.Color.blue(), "pending"), view=view)
         state.active_janken_games[msg.id] = {"host_id": ctx.author.id, "host_hand": None, "message": msg, "game_status": "host_choosing"}
 
-    @commands.command(name="leave", aliases=["退出"])
+    @commands.command(name="leave", aliases=["退出", "たいしゅつ"])
     async def leave(self, ctx):
         target_session, mid, gtype = None, None, None
         for m, s in state.active_games.items():

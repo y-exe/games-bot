@@ -6,6 +6,7 @@ import os
 import random
 import aiohttp
 import urllib.parse
+from PIL import Image
 from core.config import FONTS_DIR, TEMPLATES_DIR
 from core.constants import TEMPLATES_DATA, STATUS_EMOJIS
 from services.image.base_worker import resize_if_too_large
@@ -14,7 +15,6 @@ from services.image.text_special import generate_text4_hd, generate_text5_gradie
 from services.image.watermark import process_and_composite_image
 from services.image.gaming_gif import create_gaming_gif
 from services.image.choyen import get_5000choyen_url
-from services.ai.voicevox import generate_voicevox_audio
 from ui.embeds import create_embed
 
 class Media(commands.Cog):
@@ -39,8 +39,8 @@ class Media(commands.Cog):
         if not args:
             return await ctx.send(embed=create_embed("引数不足", "画像にするテキストを指定してください。", discord.Color.orange(), "warning"))
 
-        is_square = "square" in args.lower()
-        clean_text = args.replace("square", "").strip()
+        is_square = args.lower().endswith(" square")
+        clean_text = args[:-7].strip() if is_square else args.strip()
         
         if not clean_text:
             return await ctx.send(embed=create_embed("引数エラー", "画像にするテキスト内容が空です。", discord.Color.orange(), "warning"))
@@ -72,7 +72,8 @@ class Media(commands.Cog):
             await msg.edit(embed=create_embed("エラー", "画像生成中に予期せぬエラーが発生しました。", discord.Color.red(), "danger"))
             print(f"Text Gen Error: {e}")
 
-    @commands.command(name="text")
+    @commands.command(name="text", aliases=["テキスト"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def text1(self, ctx, *, args: str):
         # 通常設定
         n_params = {
@@ -91,7 +92,8 @@ class Media(commands.Cog):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(embed=create_embed("引数不足", "画像にするテキストを指定してください。", discord.Color.orange(), "warning"))
 
-    @commands.command(name="text2")
+    @commands.command(name="text2", aliases=["テキスト2"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def text2(self, ctx, *, args: str):
         n_params = {
             'text_color': (50, 150, 255), 'inner_color': (0, 0, 0), 'inner_thickness': 7,
@@ -108,7 +110,8 @@ class Media(commands.Cog):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(embed=create_embed("引数不足", "画像にするテキストを指定してください。", discord.Color.orange(), "warning"))
 
-    @commands.command(name="text3")
+    @commands.command(name="text3", aliases=["テキスト3"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def text3(self, ctx, *, args: str):
         n_params = {
             'text_color': (0xC3, 0x02, 0x03), 'inner_color': (255, 255, 255), 'inner_thickness': 7,
@@ -125,12 +128,13 @@ class Media(commands.Cog):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(embed=create_embed("引数不足", "画像にするテキストを指定してください。", discord.Color.orange(), "warning"))
 
-    @commands.command(name="text4")
+    @commands.command(name="text4", aliases=["テキスト4"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def text4(self, ctx, *, args: str):
-        if "square" not in args:
+        if not args.lower().endswith(" square"):
             return await ctx.send(embed=create_embed("エラー", "この文字はsquare(スタンプモード)専用です。\n例: `text4 もっちーぽっぷ square`", discord.Color.orange(), "warning"))
         
-        clean_text = args.replace("square", "").strip()
+        clean_text = args[:-7].strip()
         if not clean_text:
             return await ctx.send(embed=create_embed("引数エラー", "画像にするテキスト内容が空です。", discord.Color.orange(), "warning"))
 
@@ -142,12 +146,13 @@ class Media(commands.Cog):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(embed=create_embed("引数不足", "画像にするテキストを指定してください。", discord.Color.orange(), "warning"))
 
-    @commands.command(name="text5")
+    @commands.command(name="text5", aliases=["テキスト5"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def text5(self, ctx, *, args: str):
-        if "square" not in args:
+        if not args.lower().endswith(" square"):
             return await ctx.send(embed=create_embed("エラー", "この文字はsquare(スタンプモード)専用です。\n例: `text5 グラデーション square`", discord.Color.orange(), "warning"))
         
-        clean_text = args.replace("square", "").strip()
+        clean_text = args[:-7].strip()
         if not clean_text:
             return await ctx.send(embed=create_embed("引数エラー", "画像にするテキスト内容が空です。", discord.Color.orange(), "warning"))
 
@@ -168,7 +173,18 @@ class Media(commands.Cog):
         attachment = ctx.message.attachments[0]
         async with ctx.typing():
             image_bytes = await attachment.read()
-            selected = random.choice(TEMPLATES_DATA)
+            try:
+                width, height = Image.open(io.BytesIO(image_bytes)).size
+                if not width or not height:
+                    raise ValueError("invalid image size")
+                ratio = width / height
+            except Exception:
+                return await ctx.send(embed=create_embed("エラー", "無効な画像サイズです。", discord.Color.orange(), "warning"))
+            valid_templates = [template for template in TEMPLATES_DATA if os.path.exists(os.path.join(TEMPLATES_DIR, template["name"]))]
+            if not valid_templates:
+                return await ctx.send(embed=create_embed("エラー", "利用可能なテンプレートが見つかりませんでした。", discord.Color.orange(), "warning"))
+            valid_templates.sort(key=lambda template: abs(template["match_ratio_wh"] - ratio))
+            selected = random.choice(valid_templates[:min(4, len(valid_templates))])
             res = process_and_composite_image(image_bytes, selected)
             
             if res:
@@ -217,6 +233,7 @@ class Media(commands.Cog):
             await ctx.send(embed=create_embed("クールダウン中", f"あと {error.retry_after:.1f}秒 お待ちください。", discord.Color.orange(), "pending"))
 
     @commands.command(name="5000", aliases=["5000兆円"])
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def choyen(self, ctx, top: str, bottom: str, *options):
         hoshii = "hoshii" in options
         rainbow = "rainbow" in options
@@ -236,20 +253,6 @@ class Media(commands.Cog):
     async def choyen_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(embed=create_embed("引数不足", "引数が不足しています。\n例: `5000 上の文字 下の文字`", discord.Color.orange(), "warning"))
-
-    @commands.command(name="voice", aliases=["ボイス"])
-    async def voice(self, ctx, *, text: str):
-        async with ctx.typing():
-            buf = await generate_voicevox_audio(text, 11)
-            if buf:
-                await ctx.send(file=discord.File(buf, "voice.wav"))
-            else:
-                await ctx.send(embed=create_embed("エラー", "音声生成に失敗しました。", discord.Color.red(), "danger"))
-
-    @voice.error
-    async def voice_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(embed=create_embed("引数不足", "読み上げるテキストを指定してください。", discord.Color.orange(), "warning"))
 
 async def setup(bot):
     await bot.add_cog(Media(bot))
