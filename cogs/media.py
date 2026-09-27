@@ -7,6 +7,7 @@ import random
 import aiohttp
 import urllib.parse
 from PIL import Image
+from pydub import AudioSegment
 from core.config import FONTS_DIR, TEMPLATES_DIR
 from core.constants import TEMPLATES_DATA, STATUS_EMOJIS
 from services.image.base_worker import resize_if_too_large
@@ -237,6 +238,9 @@ class Media(commands.Cog):
     @commands.command(name="voice", aliases=["ボイス", "ぼいす", "ボイチェン"])
     @commands.cooldown(1, 20, commands.BucketType.user)
     async def voice(self, ctx, *, text_input: str = None):
+        allowed_guild_ids = {1355073968532619376, 1369344086326116453}
+        if not ctx.guild or ctx.guild.id not in allowed_guild_ids:
+            return await ctx.send(embed=create_embed("コマンド利用不可", "このサーバーではこのコマンドは使えません。", discord.Color.red(), "danger"))
         if not ctx.message.attachments and not text_input:
             return await ctx.send(embed=create_embed("引数エラー", "音声ファイルを添付するか、変換したいテキストを入力してください。\n例: `voice こんにちは`", discord.Color.orange(), "warning"))
         status = await ctx.reply(embed=create_embed("処理開始", "音声処理を開始します...", discord.Color.light_grey(), "pending"), mention_author=False)
@@ -252,8 +256,14 @@ class Media(commands.Cog):
             await status.edit(embed=create_embed("音声生成中...", f"「{text_input[:30]}{'...' if len(text_input) > 30 else ''}」をVoiceVoxで音声生成中...", discord.Color.green(), "pending", "VoiceVox API"))
             stream = await generate_voicevox_audio(text_input, 11)
             if not stream:
-                return await status.edit(embed=create_embed("APIエラー", "VoiceVoxでの音声生成に失敗しました。", discord.Color.red(), "danger", "VoiceVox API"))
+                return await status.edit(embed=create_embed("APIエラー", "VoiceVoxでの音声生成に失敗しました。\nAPIエラーか、テキストが長すぎる可能性があります。", discord.Color.red(), "danger", "VoiceVox API"))
             source = stream.getvalue()
+        try:
+            audio = AudioSegment.from_file(io.BytesIO(source), format=extension)
+            if len(audio) > 45000:
+                return await status.edit(embed=create_embed("エラー", f"音声が長すぎます ({len(audio) / 1000:.1f}秒)。45秒以下の音声にしてください。", discord.Color.orange(), "warning"))
+        except Exception as error:
+            return await status.edit(embed=create_embed("エラー", f"音声ファイルの長さ確認中に問題が発生: {error}", discord.Color.red(), "danger"))
         await status.edit(embed=create_embed("RVC処理中", "やまかわボイチェンで変換しています...\n(目安: 20-50秒)", discord.Color.red(), "pending"))
         converted = await convert_audio(source, extension)
         if not converted:
