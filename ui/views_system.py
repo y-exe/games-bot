@@ -1,10 +1,8 @@
 import datetime
-import os
 import time
 
 import discord
 
-from core.config import DEEPSEEK_API_KEY, FONTS_DIR
 from services.ai.deepseek import generate_deepseek_text_response
 from ui.embeds import create_embed
 
@@ -45,10 +43,6 @@ class HelpView(discord.ui.View):
             "`help` — このヘルプを表示します。",
         ]
         embed = create_embed("杉山啓太Bot コマンド一覧", "\n".join(commands_list), discord.Color(0x3498DB), "info")
-        font_ok = "✅" if os.path.exists(os.path.join(FONTS_DIR, "MochiyPopOne-Regular.ttf")) else "❌"
-        noto_ok = "✅" if os.path.exists(os.path.join(FONTS_DIR, "NotoSerifJP-Black.ttf")) else "❌"
-        deepseek_ok = "✅" if DEEPSEEK_API_KEY else "❌"
-        embed.add_field(name="API/Font Status", value=f"DeepSeek: {deepseek_ok} \nFont(Default): {font_ok} | Font(Noto): {noto_ok}", inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
         try:
             await interaction.message.delete()
