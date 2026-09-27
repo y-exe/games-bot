@@ -1,5 +1,6 @@
 # ui/views_economy.py
 import discord
+from core.constants import STATUS_EMOJIS
 from ui.embeds import create_embed
 
 class RankingDetailView(discord.ui.View):
@@ -84,7 +85,7 @@ class LoginBonusView(discord.ui.View):
             try: await self.message.edit(view=self)
             except: pass
 
-    @discord.ui.button(label="今後のログボ", style=discord.ButtonStyle.secondary, emoji="ℹ️") # 絵文字は近似
+    @discord.ui.button(label="今後のログボ", style=discord.ButtonStyle.secondary, emoji=STATUS_EMOJIS["info"])
     async def show_future_bonus(self, i: discord.Interaction, b: discord.ui.Button):
         if i.user.id != self.user_id:
             await i.response.send_message(embed=create_embed("エラー", "コマンドを実行した本人のみ操作できます。", discord.Color.orange(), "warning"), ephemeral=True); return
