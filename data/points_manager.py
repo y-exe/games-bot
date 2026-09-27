@@ -1,27 +1,23 @@
 # data/points_manager.py
-import json
-import os
-from core.config import POINTS_FILE, LOGIN_DATA_FILE
+from data.database import database
 
 class PointsManager:
     def __init__(self):
-        self.game_points = self._load_json(POINTS_FILE)
-        self.login_bonus_data = self._load_json(LOGIN_DATA_FILE)
+        self.game_points = {}
+        self.login_bonus_data = {}
 
-    def _load_json(self, path):
-        if os.path.exists(path):
-            try:
-                with open(path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except:
-                return {}
-        return {}
+    def load(self):
+        self.game_points, self.login_bonus_data = {}, {}
+        for user_id, points, last_login, consecutive_days, gamble_date, gamble_count in database.economy_rows():
+            key = str(user_id)
+            self.game_points[key] = points
+            data = {"consecutive_days": consecutive_days}
+            if last_login: data["last_login"] = last_login.isoformat()
+            if gamble_date: data["gamble_info"] = {"date": gamble_date.isoformat(), "count": gamble_count}
+            self.login_bonus_data[key] = data
 
     def save_all(self):
-        with open(POINTS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(self.game_points, f, indent=4, ensure_ascii=False)
-        with open(LOGIN_DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(self.login_bonus_data, f, indent=4, ensure_ascii=False)
+        database.save_economy(self.game_points, self.login_bonus_data)
 
     def get_points(self, user_id: int) -> int:
         return self.game_points.get(str(user_id), 0)
@@ -29,8 +25,7 @@ class PointsManager:
     def update_points(self, user_id: int, amount: int):
         uid_str = str(user_id)
         current = self.game_points.get(uid_str, 0)
-        self.game_points[uid_str] = current + amount
-        self.save_all()
+        self.game_points[uid_str] = database.change_points(user_id, amount)
 
     def get_rank(self, user_id: int, bot_id: int) -> int:
         # Botを除外したランキング計算

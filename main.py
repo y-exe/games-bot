@@ -6,14 +6,15 @@ from core.config import DISCORD_BOT_TOKEN
 from core.state import state
 from data.settings_manager import settings_manager
 from data.points_manager import points_manager
+from data.database import database
 from services.network.weather_api import fetch_weather_city_codes
 
 async def start_up():
     print("[System]startup")
     
+    database.initialize()
     settings_manager.load_settings()
-
-    p_count = len(points_manager.game_points)
+    points_manager.load()
     
     state.weather_city_id_map = await fetch_weather_city_codes()
     

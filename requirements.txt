@@ -5,3 +5,4 @@ pydub
 aiohttp
 pytz
 numpy
+psycopg[binary]

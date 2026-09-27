@@ -12,6 +12,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 VOICEVOX_API_KEY = os.getenv("VOICEVOX_API_KEY")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # --- 外部APIエンドポイント ---
 WEATHER_API_BASE_URL = "https://weather.tsukumijima.net/api/forecast/city/"
