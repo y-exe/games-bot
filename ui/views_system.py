@@ -16,20 +16,37 @@ class HelpView(discord.ui.View):
 
     @discord.ui.button(label="コマンド一覧を表示", style=discord.ButtonStyle.primary)
     async def show_commands_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = create_embed("杉山啓太Bot コマンド一覧", "", discord.Color(0x3498DB), "info")
         commands_list = [
-            ("`watermark` + [画像]", "画像にウォーターマークを合成します。"), ("`/imakita`", "過去30分のチャットを3行で要約します。(スラッシュコマンド)"),
-            ("`5000 [上] [下]`", "「5000兆円欲しい！」画像を生成します。"), ("`gaming` + [画像]", "画像をゲーミング風GIFに変換します。"),
-            ("`othello (@相手)`", "オセロをプレイします。"), ("`janken`", "じゃんけんゲームを開始します。"),
-            ("`bet [金額]`", "ポイントを賭けてダイスゲームに挑戦します。"), ("`text [文字]`", "やまかわサムネ風の黄色い文字画像を生成します。"),
-            ("`text2 [文字]`", "やまかわサムネ風の青い文字画像を生成します。"), ("`text3 [文字]`", "Noto Serifフォントの赤い文字画像を生成します。"),
-            ("`ping`", "Botの応答速度を表示します。"), ("`tenki [地名]`", "日本の都市の天気予報を表示します。"),
-            ("`info (@相手)`", "ユーザー情報を表示します。"), ("`rate [金額] [通貨]`", "外貨を日本円に換算します。"),
-            ("`shorturl [URL]`", "URLを短縮します。"), ("`amazon [URL]`", "AmazonのURLを短縮します。"),
-            ("`totusi [文字列]`", "突然の死ジェネレーター。"), ("`time (国コード)`", "世界時計。"), ("`help`", "このヘルプを表示します。"),
+            "`/imakita` — 過去30分のチャットを3行で要約します。",
+            "`watermark` + 画像 — 画像にウォーターマークを合成します。",
+            "`gaming` + 画像 — 画像をゲーミング風GIFに変換します。",
+            "`5000 [上] [下]` — 「5000兆円欲しい！」画像を生成します。",
+            "`text [文字]` — 黄色いサムネ風テキスト画像を生成します。",
+            "`text2 [文字]` — 青いサムネ風テキスト画像を生成します。",
+            "`text3 [文字]` — 赤いサムネ風テキスト画像を生成します。",
+            "`text4 [文字] square` — 変形スタンプ画像を生成します。",
+            "`text5 [文字] square` — 虹色スタンプ画像を生成します。",
+            "`othello (@相手)` — オセロを開始します。",
+            "`connectfour (@相手)` — 四目並べを開始します。",
+            "`highlow [賭け金] @相手` — ハイアンドロー対戦を開始します。",
+            "`janken` — じゃんけんゲームを開始します。",
+            "`leave` — 参加中の対戦から離脱します。",
+            "`point` / `othello point` — ゲームポイントのランキングを表示します。",
+            "`login` — ログインボーナスを受け取ります。",
+            "`gamble` — ハイリスクギャンブルに挑戦します。",
+            "`bet [金額]` — ポイントを賭けてダイスゲームに挑戦します。",
+            "`give @相手 [金額]` — ポイントを送金します。",
+            "`ping` — Botの応答速度を表示します。",
+            "`tenki [地名]` — 日本の都市の天気予報を表示します。",
+            "`info (@相手)` — ユーザー情報を表示します。",
+            "`rate [金額] [通貨]` — 外貨を日本円に換算します。",
+            "`totusi [文字列]` — 突然の死ジェネレーターです。",
+            "`time (国コード)` — 日本または指定国の時刻を表示します。",
+            "`help` — このヘルプを表示します。",
+            "`setchannel` — 【管理者】このチャンネルのコマンド利用を切り替えます。",
+            "`sync (サーバーID)` — 【管理者】スラッシュコマンドを同期します。",
         ]
-        for name, description in commands_list:
-            embed.add_field(name=name, value=description, inline=False)
+        embed = create_embed("杉山啓太Bot コマンド一覧", "\n".join(commands_list), discord.Color(0x3498DB), "info")
         font_ok = "✅" if os.path.exists(os.path.join(FONTS_DIR, "MochiyPopOne-Regular.ttf")) else "❌"
         noto_ok = "✅" if os.path.exists(os.path.join(FONTS_DIR, "NotoSerifJP-Black.ttf")) else "❌"
         deepseek_ok = "✅" if DEEPSEEK_API_KEY else "❌"
