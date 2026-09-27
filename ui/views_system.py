@@ -43,8 +43,6 @@ class HelpView(discord.ui.View):
             "`totusi [文字列]` — 突然の死ジェネレーターです。",
             "`time (国コード)` — 日本または指定国の時刻を表示します。",
             "`help` — このヘルプを表示します。",
-            "`setchannel` — 【管理者】このチャンネルのコマンド利用を切り替えます。",
-            "`sync (サーバーID)` — 【管理者】スラッシュコマンドを同期します。",
         ]
         embed = create_embed("杉山啓太Bot コマンド一覧", "\n".join(commands_list), discord.Color(0x3498DB), "info")
         font_ok = "✅" if os.path.exists(os.path.join(FONTS_DIR, "MochiyPopOne-Regular.ttf")) else "❌"
