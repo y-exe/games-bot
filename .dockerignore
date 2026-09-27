@@ -1,0 +1,8 @@
+.git
+.github
+.env
+__pycache__
+*.pyc
+*.json
+audio
+state

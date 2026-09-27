@@ -28,10 +28,12 @@ DEEPSEEK_MODEL = "deepseek-chat"
 JST = pytz.timezone("Asia/Tokyo")
 
 # --- データファイルパス ---
-SETTINGS_FILE = os.path.join(BASE_DIR, "bot_settings.json")
-POINTS_FILE = os.path.join(BASE_DIR, "game_points.json")
-LOGIN_DATA_FILE = os.path.join(BASE_DIR, "login_bonus_data.json")
-CITY_CODES_FILE = os.path.join(BASE_DIR, "weather_city_codes.json")
+DATA_DIR = os.getenv("DATA_DIR", BASE_DIR)
+os.makedirs(DATA_DIR, exist_ok=True)
+SETTINGS_FILE = os.path.join(DATA_DIR, "bot_settings.json")
+POINTS_FILE = os.path.join(DATA_DIR, "game_points.json")
+LOGIN_DATA_FILE = os.path.join(DATA_DIR, "login_bonus_data.json")
+CITY_CODES_FILE = os.path.join(DATA_DIR, "weather_city_codes.json")
 
 # --- アセットディレクトリ ---
 FONTS_DIR = os.path.join(BASE_DIR, "assets", "fonts")

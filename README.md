@@ -102,8 +102,14 @@ pip install -r requirements.txt
 DISCORD_BOT_TOKEN=
 DEEPSEEK_API_KEY=
 VOICEVOX_API_KEY=
+DATA_DIR=/app/state
 ```
 ※rootに作成
+
+## コンテナ運用
+
+`main` ブランチへの push により GitHub Actions が `ghcr.io/y-exe/games-bot` の
+`latest` とコミット SHA タグを更新します。永続化したいデータは `DATA_DIR` に保存されます。
 
 ## クレジット・使用API
 
