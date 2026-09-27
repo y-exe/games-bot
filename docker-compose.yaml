@@ -1,0 +1,15 @@
+services:
+  games-bot:
+    build:
+      context: .
+    image: games-bot:local
+    env_file:
+      - .env
+    environment:
+      DATA_DIR: /app/state
+    restart: unless-stopped
+    volumes:
+      - games-bot-data:/app/state
+
+volumes:
+  games-bot-data:

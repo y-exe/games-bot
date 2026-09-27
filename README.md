@@ -111,6 +111,18 @@ DATA_DIR=/app/state
 `main` ブランチへの push により GitHub Actions が `ghcr.io/y-exe/games-bot` の
 `latest` とコミット SHA タグを更新します。永続化したいデータは `DATA_DIR` に保存されます。
 
+### ローカル検証
+
+Docker Desktop を起動した状態で、`.env.template` を `.env` にコピーして
+`DISCORD_BOT_TOKEN` を設定し、次を実行します。
+
+```bash
+docker compose up --build
+```
+
+ローカルの Bot データは Docker volume `games-bot-data` に保存されます。停止は
+`docker compose down`、データも削除する場合だけ `docker compose down --volumes` を使います。
+
 ## クレジット・使用API
 
 *   **DeepSeek API:** チャット要約、地名推測など
