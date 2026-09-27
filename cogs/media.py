@@ -15,6 +15,8 @@ from services.image.text_special import generate_text4_hd, generate_text5_gradie
 from services.image.watermark import process_and_composite_image
 from services.image.gaming_gif import create_gaming_gif
 from services.image.choyen import get_5000choyen_url
+from services.ai.voicevox import generate_voicevox_audio
+from services.audio.rvc import convert_audio
 from ui.embeds import create_embed
 
 class Media(commands.Cog):
@@ -231,6 +233,32 @@ class Media(commands.Cog):
     async def gaming_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
             await ctx.send(embed=create_embed("クールダウン中", f"あと {error.retry_after:.1f}秒 お待ちください。", discord.Color.orange(), "pending"))
+
+    @commands.command(name="voice", aliases=["ボイス", "ぼいす", "ボイチェン"])
+    @commands.cooldown(1, 20, commands.BucketType.user)
+    async def voice(self, ctx, *, text_input: str = None):
+        if not ctx.message.attachments and not text_input:
+            return await ctx.send(embed=create_embed("引数エラー", "音声ファイルを添付するか、変換したいテキストを入力してください。\n例: `voice こんにちは`", discord.Color.orange(), "warning"))
+        status = await ctx.reply(embed=create_embed("処理開始", "音声処理を開始します...", discord.Color.light_grey(), "pending"), mention_author=False)
+        extension, name = "wav", "text_to_speech"
+        if ctx.message.attachments:
+            attachment = ctx.message.attachments[0]
+            extension = os.path.splitext(attachment.filename)[1].lower().lstrip(".")
+            if extension not in {"wav", "mp3", "flac", "m4a"}:
+                return await status.edit(embed=create_embed("エラー", "対応している音声ファイル形式は `.wav`, `.mp3`, `.flac`, `.m4a` です。", discord.Color.orange(), "warning"))
+            source = await attachment.read()
+            name = os.path.splitext(attachment.filename)[0]
+        else:
+            await status.edit(embed=create_embed("音声生成中...", f"「{text_input[:30]}{'...' if len(text_input) > 30 else ''}」をVoiceVoxで音声生成中...", discord.Color.green(), "pending", "VoiceVox API"))
+            stream = await generate_voicevox_audio(text_input, 11)
+            if not stream:
+                return await status.edit(embed=create_embed("APIエラー", "VoiceVoxでの音声生成に失敗しました。", discord.Color.red(), "danger", "VoiceVox API"))
+            source = stream.getvalue()
+        await status.edit(embed=create_embed("RVC処理中", "やまかわボイチェンで変換しています...\n(目安: 20-50秒)", discord.Color.red(), "pending"))
+        converted = await convert_audio(source, extension)
+        if not converted:
+            return await status.edit(embed=create_embed("RVCエラー", "音声変換プロセスでエラーが発生しました。", discord.Color.red(), "danger"))
+        await status.edit(embed=create_embed("音声変換完了", "うまくいかない場合はBGMを抜いてみてください。", discord.Color.green(), "success"), attachments=[discord.File(io.BytesIO(converted), filename=f"rvc_{name}.wav")])
 
     @commands.command(name="5000", aliases=["5000兆円"])
     @commands.cooldown(1, 5, commands.BucketType.user)
