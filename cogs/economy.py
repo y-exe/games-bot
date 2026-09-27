@@ -28,17 +28,13 @@ class Economy(commands.Cog):
         rich_top5_text = []
         for i, (pid, pval) in enumerate(rich_sorted[:5]):
             medal = "🥇 " if i == 0 else "🥈 " if i == 1 else "🥉 " if i == 2 else ""
-            try: user = await self.bot.fetch_user(int(pid))
-            except: user = None
-            user_display = user.mention if user else f"ID:{pid}"
+            user_display = f"<@{pid}>"
             rich_top5_text.append(f"{medal}{i + 1}位 {user_display} - **{pval}pt**")
         embed.add_field(name="🏆 富豪ランキング Top 5", value="\n".join(rich_top5_text) or "該当者なし", inline=False)
         poor_top3_text = []
         poor_players = [p for p in poor_sorted if p[1] < 0]
         for i, (pid, pval) in enumerate(poor_players[:3]):
-            try: user = await self.bot.fetch_user(int(pid))
-            except: user = None
-            user_display = user.mention if user else f"ID:{pid}"
+            user_display = f"<@{pid}>"
             poor_top3_text.append(f"{i + 1}位 {user_display} - **{pval}pt**")
         if poor_top3_text:
             embed.add_field(name="💸 貧乏ランキング Top 3", value="\n".join(poor_top3_text), inline=False)
