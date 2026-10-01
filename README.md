@@ -3,8 +3,8 @@
   多機能ゲームBot (杉山啓太Bot)
   
   [![discord.py](https://img.shields.io/badge/discord.py-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discordpy.readthedocs.io/)
-  [![Python 3.10](https://img.shields.io/badge/Python-3.10-yellow?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/release/python-3100/)
-  [![License](https://img.shields.io/badge/LICENSE-AGPL3.0-green.svg?style=flat-square)](LICENSE)
+  [![Python](https://img.shields.io/badge/Python-yellow?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+  [![License GPL v3](https://img.shields.io/badge/LICENSE-GPL%20v3-green.svg?style=flat-square)](LICENSE)
 </h1>
 会話要約、画像生成・加工、そしてオセロや四目並べといったゲーム機能など<br>
 詰めるだけ詰め込んだだけのBot!!!<br>
