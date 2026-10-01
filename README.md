@@ -4,6 +4,7 @@
   
   [![discord.py](https://img.shields.io/badge/discord.py-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discordpy.readthedocs.io/)
   [![Python](https://img.shields.io/badge/Python-yellow?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
   [![License GPL v3](https://img.shields.io/badge/LICENSE-GPL%20v3-green.svg?style=flat-square)](LICENSE)
 </h1>
 会話要約、画像生成・加工、そしてオセロや四目並べといったゲーム機能など<br>
@@ -133,8 +134,7 @@ docker compose up --build
 
 ## ライセンス
 
-[AGPL-3.0](LICENSE)  
-改変した後、ネットワーク経由でユーザーにサービスを提供する場合、ソースコードの公開義務が発生します。
+[GPL-3.0](LICENSE)  
 
 ---
 
