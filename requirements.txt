@@ -1,8 +1,0 @@
-discord.py
-python-dotenv
-pillow
-pydub
-aiohttp
-pytz
-numpy
-psycopg[binary]

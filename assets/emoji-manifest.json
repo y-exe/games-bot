@@ -1,0 +1,242 @@
+[
+  {
+    "name": "o_A",
+    "sourceId": "1380638761288859820",
+    "animated": false
+  },
+  {
+    "name": "o_B",
+    "sourceId": "1380638762941419722",
+    "animated": false
+  },
+  {
+    "name": "o_C",
+    "sourceId": "1380638764782850080",
+    "animated": false
+  },
+  {
+    "name": "o_D",
+    "sourceId": "1380638769216225321",
+    "animated": false
+  },
+  {
+    "name": "o_E",
+    "sourceId": "1380638771178897559",
+    "animated": false
+  },
+  {
+    "name": "o_F",
+    "sourceId": "1380638773926301726",
+    "animated": false
+  },
+  {
+    "name": "o_G",
+    "sourceId": "1380638776103010365",
+    "animated": false
+  },
+  {
+    "name": "o_H",
+    "sourceId": "1380643990784966898",
+    "animated": false
+  },
+  {
+    "name": "o_N",
+    "sourceId": "1380643993431314432",
+    "animated": false
+  },
+  {
+    "name": "o_M",
+    "sourceId": "1380643995855622254",
+    "animated": false
+  },
+  {
+    "name": "o_L",
+    "sourceId": "1380643998841966612",
+    "animated": false
+  },
+  {
+    "name": "o_K",
+    "sourceId": "1380644001652281374",
+    "animated": false
+  },
+  {
+    "name": "o_J",
+    "sourceId": "1380644004181577849",
+    "animated": false
+  },
+  {
+    "name": "o_I",
+    "sourceId": "1380644006093918248",
+    "animated": false
+  },
+  {
+    "name": "events",
+    "sourceId": "1383251448451563560",
+    "animated": false
+  },
+  {
+    "name": "moderator",
+    "sourceId": "1383251587438215218",
+    "animated": false
+  },
+  {
+    "name": "staff",
+    "sourceId": "1383251602680578111",
+    "animated": false
+  },
+  {
+    "name": "earlysupporter",
+    "sourceId": "1383251618379727031",
+    "animated": false
+  },
+  {
+    "name": "bugHunter",
+    "sourceId": "1383251633567170683",
+    "animated": false
+  },
+  {
+    "name": "earlyverifiedbot",
+    "sourceId": "1383251648348160030",
+    "animated": false
+  },
+  {
+    "name": "partnerserver",
+    "sourceId": "1383251682070364210",
+    "animated": false
+  },
+  {
+    "name": "booster",
+    "sourceId": "1383251702144176168",
+    "animated": false
+  },
+  {
+    "name": "brilliance",
+    "sourceId": "1383251723610624174",
+    "animated": false
+  },
+  {
+    "name": "bravery",
+    "sourceId": "1383251749623693392",
+    "animated": false
+  },
+  {
+    "name": "balance",
+    "sourceId": "1383251792413851688",
+    "animated": false
+  },
+  {
+    "name": "nitro",
+    "sourceId": "1383252018532974642",
+    "animated": false
+  },
+  {
+    "name": "activedeveloper",
+    "sourceId": "1383253229189730374",
+    "animated": false
+  },
+  {
+    "name": "o0",
+    "sourceId": "1387735237173182544",
+    "animated": false
+  },
+  {
+    "name": "o1",
+    "sourceId": "1387735281775411220",
+    "animated": false
+  },
+  {
+    "name": "o2",
+    "sourceId": "1387735312129593445",
+    "animated": false
+  },
+  {
+    "name": "0_o",
+    "sourceId": "1387735948812488734",
+    "animated": false
+  },
+  {
+    "name": "1_o",
+    "sourceId": "1387735961374560368",
+    "animated": false
+  },
+  {
+    "name": "2_o",
+    "sourceId": "1387735974582423663",
+    "animated": false
+  },
+  {
+    "name": "3_o",
+    "sourceId": "1387735988629147710",
+    "animated": false
+  },
+  {
+    "name": "4_o",
+    "sourceId": "1387736001157398568",
+    "animated": false
+  },
+  {
+    "name": "5_o",
+    "sourceId": "1387736014591758367",
+    "animated": false
+  },
+  {
+    "name": "6_o",
+    "sourceId": "1387736028684750868",
+    "animated": false
+  },
+  {
+    "name": "7_o",
+    "sourceId": "1387736046099501077",
+    "animated": false
+  },
+  {
+    "name": "8_o",
+    "sourceId": "1387736058783072266",
+    "animated": false
+  },
+  {
+    "name": "9_o",
+    "sourceId": "1387736070518603776",
+    "animated": false
+  },
+  {
+    "name": "4_0",
+    "sourceId": "1395065436114128937",
+    "animated": false
+  },
+  {
+    "name": "4_1",
+    "sourceId": "1395065453675544586",
+    "animated": false
+  },
+  {
+    "name": "4_2",
+    "sourceId": "1395065472491323493",
+    "animated": false
+  },
+  {
+    "name": "status_success",
+    "sourceId": "1434921946298060932",
+    "animated": false
+  },
+  {
+    "name": "status_pending",
+    "sourceId": "1434922066431316019",
+    "animated": false
+  },
+  {
+    "name": "status_warning",
+    "sourceId": "1434922926066634873",
+    "animated": false
+  },
+  {
+    "name": "status_info",
+    "sourceId": "1434923060179501108",
+    "animated": false
+  },
+  {
+    "name": "status_danger",
+    "sourceId": "1434924002551267420",
+    "animated": false
+  }
+]

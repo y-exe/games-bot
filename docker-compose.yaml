@@ -2,14 +2,30 @@ services:
   games-bot:
     build:
       context: .
-    image: games-bot:local
+      target: runtime
+    image: games-bot:typescript-local
     env_file:
-      - .env
+      - .env.local
     environment:
       DATA_DIR: /app/state
+      BOT_ENV: local
     restart: unless-stopped
     volumes:
-      - games-bot-data:/app/state
+      - games-bot-test-data:/app/state
+      - ./.local/emojis.json:/app/state/emojis.json:ro
+      - ./.local/emoji-originals:/app/state/emoji-originals:ro
+
+  postgres-test:
+    image: postgres:17-bookworm
+    profiles: [database-test]
+    environment:
+      POSTGRES_DB: games_bot_test
+      POSTGRES_USER: games_bot_test
+      POSTGRES_PASSWORD: local-test-only
+    ports:
+      - "127.0.0.1:55432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
 
 volumes:
-  games-bot-data:
+  games-bot-test-data:

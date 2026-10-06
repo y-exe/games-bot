@@ -2,10 +2,9 @@
 <h1>
   多機能ゲームBot (杉山啓太Bot)
   
-  [![discord.py](https://img.shields.io/badge/discord.py-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discordpy.readthedocs.io/)
-  [![Python](https://img.shields.io/badge/Python-yellow?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-  [![License GPL v3](https://img.shields.io/badge/LICENSE-GPL%20v3-green.svg?style=flat-square)](LICENSE)
+  [![discord.js](https://img.shields.io/badge/discord.js-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discordjs.dev/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+  [![License](https://img.shields.io/badge/LICENSE-AGPL3.0-green.svg?style=flat-square)](LICENSE)
 </h1>
 会話要約、画像生成・加工、そしてオセロや四目並べといったゲーム機能など<br>
 詰めるだけ詰め込んだだけのBot!!!<br>
@@ -26,6 +25,7 @@
 一応分割して今に至ります。全然管理はできてないので今でも自分では意味わからん構成してる助けて。  
 
 **2025/06/14 やまかわてるき鯖へのBeta版導入。** 今でも使われてる。そして今でもBeta版。(現在2026/06/21)  
+**2026/10 TypeScript + discord.js に全面書き直し。全部の応答がComponents v2のカードになった。**  
 
 ## 軽い説明
 
@@ -40,7 +40,7 @@
     *   `othello`: オセロの対戦相手を募集します。盤面サイズ(6x6, 8x8, 10x10)を選択可能です。
     *   `othello @メンション`: 指定したユーザーと対戦します。
 *   `connectfour (@相手ユーザー)` (または `cf`): 四目並べの対戦を開始します。
-*   `janken`: じゃんけんゲームを開始します。リアクションで手を決定し、ポイントを賭けて勝負します。
+*   `janken`: じゃんけんゲームを開始します。ボタンで手を決定し、ポイントを賭けて勝負します。
 *   `gamble`: 所持ポイントを賭けたハイリスク・ハイリターンなギャンブルを行います。
 *   `bet [金額]`: ポイントを賭けてシンプルなダイスゲームを行います。
 *   `login`: 1日1回、ログインボーナス（ポイント）を受け取ります。
@@ -58,7 +58,7 @@
 *   `watermark`: 画像を添付して実行すると、ランダムなテンプレートを用いてウォーターマークを合成します。
 *   `gaming`: 画像を添付して実行すると、ゲーミング風（七色に光る）GIFアニメーションに変換します。
 *   `5000 [上文字列] [下文字列]`: 「5000兆円欲しい！」風のロゴ画像を生成します。
-*   `voice [テキスト]`: VoiceVox APIを使用して、テキストを音声ファイル(WAV)に変換して送信します。
+*   `voice [テキスト]`: VoiceVox APIとRVCボイチェンを使用して、テキストを音声ファイル(WAV)に変換して送信します。
 
 ### ユーティリティ・その他
 *   `/imakita`: (スラッシュコマンド) 過去30分のチャットログをAI (DeepSeek) が3行で要約します。
@@ -74,33 +74,35 @@
 
 ```text
 .
-├── main.py                 # 起動用スクリプト
-├── bot.py                  # Bot本体の定義
-├── .env                    # 環境変数 (APIキー等)
-├── requirements.txt        # 依存ライブラリ一覧
-├── assets/                 # アセットフォルダ
-│   ├── fonts/              # フォントファイル (必須)
+├── package.json             # 依存ライブラリ一覧
+├── src/
+│   ├── index.ts             # 起動・入力の受け付け
+│   ├── commands/            # コマンド定義・入力フォーム
+│   ├── games/               # ゲームロジック
+│   ├── services/            # AI・画像処理・音声・ネットワーク機能
+│   ├── data/                # データ保存 (SQLite / PostgreSQL)
+│   └── ui/                  # Discord UI (Components v2)
+├── scripts/                 # 登録・検証用スクリプト
+├── assets/                  # アセットフォルダ
+│   ├── fonts/               # フォントファイル (必須)
 │   │   ├── MochiyPopOne-Regular.ttf
 │   │   └── NotoSerifJP-Black.ttf
 │   └── watermark_templates/ # ウォーターマーク用画像 (必須)
-├── core/                   # 設定・定数・状態管理
-├── cogs/                   # コマンド定義 (Economy, Games, Media, Utility, System)
-├── data/                   # データ保存用 (自動生成されるJSONファイル等)
-├── engines/                # ゲームロジック
-├── services/               # AI・画像処理・ネットワーク機能
-└── ui/                     # Discord UI (Embed, View)
+└── docs/                    # 仕様・検証の手順
 ```
 
 ## 導入手順
 
 ### ライブラリ
 ```bash
-pip install -r requirements.txt
+npm ci
+npm run build
 ```
 
 ### 環境変数
 ```env
 DISCORD_BOT_TOKEN=
+DISCORD_APPLICATION_ID=
 DEEPSEEK_API_KEY=
 VOICEVOX_API_KEY=
 DATA_DIR=/app/state
@@ -128,6 +130,7 @@ docker compose up --build
 
 *   **DeepSeek API:** チャット要約、地名推測など
 *   **VoiceVox (Web API):** テキスト読み上げ
+*   **RVC:** やまかわボイチェン（音声変換）
 *   **つくもAPI:** 天気予報データ
 *   **Exchange Rate API:** 為替レート
 *   **5000兆円欲しい！API** 
@@ -135,6 +138,7 @@ docker compose up --build
 ## ライセンス
 
 [GPL-3.0](LICENSE)  
+改変した後、ネットワーク経由でユーザーにサービスを提供する場合、ソースコードの公開義務が発生します。
 
 ---
 
