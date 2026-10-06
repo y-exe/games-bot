@@ -42,7 +42,6 @@ async function execute(name:string,ctx:Context) {
     return games.create(name as GameKind,ctx.user.id,ctx.channelId,p=>ctx.send(p),target?.id,ctx.slash?.options.getInteger('size')??8,name==='highlow'?positiveAmount(ctx.text('amount')):0n);
   }
   if(name==='leave'){
-    if(!ctx.slash&&!allowed.has(ctx.channelId))return ctx.send(card('対戦終了の確認','対戦しているチャンネルで `leave` を実行してください。\n元のゲーム画面の **投了する** ボタンからも確認できます。'));
     const message=await ctx.send(await games.leave(ctx.user.id));games.trackLeave(message.id,p=>ctx.send(p));return message;
   }
   if(economyNames.has(name))return economy.run(name,ctx);
@@ -55,14 +54,6 @@ async function interaction(i:Interaction) {
     if(!i.inCachedGuild()||(!settings.production&&i.guildId!==settings.guildId))return void i.respond([]).catch(()=>{});
     try {await handleAutocomplete(i,channelId=>editor.recentEditorCards(channelId));}
     catch {await i.respond([]).catch(()=>{});}
-    return;
-  }
-  if(!i.guildId&&i.isButton()&&i.message.author.id===client.user?.id) {
-    try {
-      if(i.customId.startsWith('help:'))await handleHelp(i);
-      else if(i.customId==='time:help')await handleTimeHelp(i);
-      else throw new UserError('この操作はサーバー内で行ってください。');
-    }catch(error){try{await replyWithError(i,error);}catch{console.error('DMの操作エラーを通知できませんでした。');}}
     return;
   }
   if(!i.inCachedGuild()||(!settings.production&&i.guildId!==settings.guildId))return;
@@ -102,17 +93,18 @@ async function interaction(i:Interaction) {
 async function legacy(message:Message) {
   if(message.author.bot||!message.guild)return;
   if(!settings.production&&message.guild.id!==settings.guildId)return;
-  let ctx=new Context(message,client);
-  if(!allowed.has(message.channelId))ctx.makePrivate();
+  if(!allowed.has(message.channelId))return;
+  let ctx:Context|undefined;
   try {
     const parsed=parseLegacy(message.content);if(!parsed)return;
     ctx=new Context(message,client,parsed.args);await execute(parsed.name,ctx);
-  }catch(e){try{await ctx.fail(exceptionCard(e,'legacy command'),!(e instanceof UserError));}catch{console.error('本人へのコマンドエラー通知を送信できませんでした。');}}
+  }catch(e){try{await ctx?.fail(exceptionCard(e,'legacy command'),!(e instanceof UserError));}catch{console.error('コマンドエラーの通知を送信できませんでした。');}
+  }
 }
 let stopTax:(()=>void)|undefined;
 client.once(Events.ClientReady,async ready=>{
   if(ready.user.id!==settings.applicationId){console.error('トークンとアプリケーションIDが一致しません。');client.destroy();await store.close();process.exitCode=1;return;}
-  ready.user.setActivity('help / ゲーム・画像・ポイント',{type:ActivityType.Watching});
+  ready.user.setActivity('/help | games-bot by yexe',{type:ActivityType.Custom});
   await games.restore();stopTax=taxScheduler(store,()=>ready.user.id);console.log(`READY ${ready.user.tag} · ${settings.production?'production':'local'} · ${commandNames.size} commands · allowed channels ${allowed.size}`);
 });
 client.on(Events.InteractionCreate,i=>void interaction(i));client.on(Events.MessageCreate,m=>void legacy(m));

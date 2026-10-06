@@ -65,13 +65,7 @@ export class Context {
   }
   async error(message:string) { return this.send(card('操作を確認してください',redact(message).replace(/。(?!\n|$)/g,'。\n'),'warning')); }
   async fail(payload:MessageCreateOptions,privateReply=false) {
-    if(privateReply) {
-      postErrorLog(payload as Record<string,unknown>);
-      if(!isPublicChannel(this.channelId)) {
-        const previous=this.privateDelivery?undefined:this.response;this.makePrivate();
-        if(previous)await previous.edit(card('処理エラー','**処理を完了できませんでした。**\n詳細は本人向けの通知、または管理者のログを確認してください。','danger')).catch(()=>{});
-      }
-    }
+    if(privateReply)postErrorLog(payload as Record<string,unknown>);
     return this.send(payload);
   }
 }
