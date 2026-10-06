@@ -1,5 +1,5 @@
 import {UserError} from '../errors.js';
-import { ActionRowBuilder, ButtonStyle, MessageFlags, StringSelectMenuBuilder, type ButtonInteraction, type Client, type Message, type StringSelectMenuInteraction } from 'discord.js';
+import { ActionRowBuilder, ButtonStyle, MessageFlags, StringSelectMenuBuilder, type ButtonInteraction, type Client, type Message, type MessageCreateOptions, type StringSelectMenuInteraction } from 'discord.js';
 import { randomInt, randomUUID } from 'node:crypto';
 import { Othello, ConnectFour, type Player } from './board.js';
 import { Store } from '../data/store.js';
@@ -98,7 +98,17 @@ export class Games {
     if(!channel?.isTextBased()||!('messages' in channel))throw new UserError('ゲームのチャンネルにアクセスできません。');
     return channel.messages.fetch(s.messageId);
   }
-  private async redraw(s: Session) { await (await this.message(s)).edit(await this.payload(s)); }
+  private async redraw(s: Session) {
+    const payload=await this.payload(s);
+    try {await (await this.message(s)).edit(payload);}
+    catch(e) {
+      if((e as {code?:number}).code!==10008)throw e;
+      const channel=await this.client.channels.fetch(s.channelId);
+      if(!channel?.isSendable())return;
+      const message=await channel.send(payload as MessageCreateOptions);
+      s.messageId=message.id;await this.save(s);
+    }
+  }
   async handle(i: ButtonInteraction|StringSelectMenuInteraction) {
     const [,id,rev,rawAction]=i.customId.split(':');
     const [action,deadline]=rawAction?.split('~')??[];

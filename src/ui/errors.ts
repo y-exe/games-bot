@@ -2,6 +2,7 @@ import {errorReport} from '../errors.js';
 import {UserError} from '../errors.js';
 import {card} from './cards.js';
 import {MessageFlags,type Interaction} from 'discord.js';
+import {postErrorLog} from '../services/error-log.js';
 let publicChannels:ReadonlySet<string>=new Set();
 export function setErrorChannels(set:ReadonlySet<string>) {publicChannels=set;}
 export function isPublicChannel(channelId:string) {return publicChannels.has(channelId);}
@@ -11,6 +12,7 @@ export function exceptionCard(error:unknown,operation:string) {
 }
 export async function replyWithError(i:Interaction,error:unknown) {
   const payload=exceptionCard(error,i.isChatInputCommand()?`/${i.commandName}`:'customId' in i?i.customId:'interaction');
+  if(!(error instanceof UserError))postErrorLog(payload);
   if(!i.isRepliable())return;
   if(i.isChatInputCommand()&&i.deferred) {
     if(i.ephemeral||error instanceof UserError)return i.editReply(payload);

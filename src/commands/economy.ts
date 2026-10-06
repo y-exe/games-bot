@@ -10,6 +10,7 @@ import {loginForecast,loginDay,loginReward,nextLoginTime} from '../data/login.js
 import {rollGamble,diceDelta} from '../data/gamble.js';
 import {transferFee,formatAmount} from '../data/money.js';
 import {exceptionCard,isPublicChannel} from '../ui/errors.js';
+import {postErrorLog} from '../services/error-log.js';
 
 interface Confirm { owner:string; target?:string; amount?:bigint; kind:'give'|'gamble'; expires:number; channelId:string;message?:Message }
 function loginCard(result:Awaited<ReturnType<Store['login']>>,owner:string,now=new Date()) {
@@ -128,9 +129,11 @@ export class Economy {
     try { result=await this.confirm(data,key!); }
     catch(e) {
       if(!(e instanceof UserError)) {
-        if(isPublicChannel(i.channelId))return i.editReply(exceptionCard(e,`economy:${data.kind}`));
+        const detail=exceptionCard(e,`economy:${data.kind}`);
+        postErrorLog(detail as Record<string,unknown>);
+        if(isPublicChannel(i.channelId))return i.editReply(detail);
         await i.editReply(card('処理エラー','**処理を完了できませんでした。**\n詳細は本人向けの返信を確認してください。','danger'));
-        return i.followUp({...exceptionCard(e,`economy:${data.kind}`),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
+        return i.followUp({...detail,flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
       }
       return i.editReply(card('実行できませんでした',`${e.message}\n\nコマンドを実行して、最新の残高から確認し直してください。`,'warning'));
     }

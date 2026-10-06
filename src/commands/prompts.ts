@@ -4,6 +4,7 @@ import { card, button, row } from '../ui/cards.js';
 import { emoji } from '../ui/emojis.js';
 import { UserError } from '../errors.js';
 import { exceptionCard, isPublicChannel } from '../ui/errors.js';
+import { postErrorLog } from '../services/error-log.js';
 
 interface PromptField {
   kind:'text'|'file'|'checkbox'|'radio'|'select'|'user';
@@ -138,7 +139,9 @@ export async function handlePromptSubmit(i:ModalSubmitInteraction,deps:{client:C
   const ctx=new Context(i,deps.client,promptArgs(name,i));
   try {await deps.execute(name,ctx);}
   catch(e) {
-    try {await ctx.fail(exceptionCard(e,`フォーム:${name}`),!(e instanceof UserError)&&!isPublicChannel(i.channelId??''));}
+    const detail=exceptionCard(e,`フォーム:${name}`);
+    if(!(e instanceof UserError))postErrorLog(detail as Record<string,unknown>);
+    try {await ctx.fail(detail,!(e instanceof UserError)&&!isPublicChannel(i.channelId??''));}
     catch {console.error('フォームのエラー通知を送信できませんでした。');}
   }
 }

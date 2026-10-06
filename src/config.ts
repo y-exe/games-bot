@@ -13,6 +13,7 @@ export const settings = {
   testChannelId: process.env.TEST_CHANNEL_ID ?? '',
   databaseUrl: process.env.DATABASE_URL ?? '',
   dataDir: resolve(process.env.DATA_DIR ?? '.local'),
+  errorLogChannelId: process.env.ERROR_LOG_CHANNEL_ID ?? '',
   deepseekKey: process.env.DEEPSEEK_API_KEY ?? '',
   voicevoxKey: process.env.VOICEVOX_API_KEY ?? '',
   voiceGuildIds: new Set((process.env.VOICE_GUILD_IDS??(production?'1355073968532619376,1369344086326116453':process.env.TEST_GUILD_ID??'')).split(',').map(id=>id.trim()).filter(Boolean)),

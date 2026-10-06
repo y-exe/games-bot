@@ -34,6 +34,7 @@ async function execute(name:string,ctx:Context) {
   if(!await authorizeChannel(name,ctx,allowed))return;
   cooldowns.take(ctx.user.id,name);
   if(!ctx.slash&&needsPrompt(name,ctx))return ctx.send(promptCard(name));
+  if(name==='imakita')ctx.makePrivate();
   await ctx.prepare(name==='embed'||name==='leave'||name==='imakita'||name==='sync');
   if(gameNames.has(name)) {
     const target=await ctx.target('opponent',name==='highlow'?1:0);if(target?.bot&&target.id!==client.user!.id)throw new UserError('他のBotを対戦相手に指定できません。');
