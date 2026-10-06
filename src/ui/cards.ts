@@ -3,7 +3,7 @@ import { emoji } from './emojis.js';
 
 export type Status = 'success' | 'danger' | 'info' | 'warning' | 'pending';
 const colors: Record<Status,number> = { success: 0x2ecc71, danger: 0xe74c3c, info: 0x3498db, warning: 0xe67e22, pending: 0x95a5a6 };
-export const legalFooter='-# [利用規約](https://github.com/y-exe/games-bot/blob/main/TERMS_OF_SERVICE.md)・[プライバシーポリシー](https://github.com/y-exe/tokumei-bot/blob/main/PRIVACY_POLICY.md)';
+export const legalFooter='-# [利用規約](https://github.com/y-exe/games-bot/blob/main/TERMS_OF_SERVICE.md)・[プライバシーポリシー](https://github.com/y-exe/games-bot/blob/main/PRIVACY_POLICY.md)';
 export type CardRow = ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>;
 export function button(id: string, label: string, style = ButtonStyle.Secondary, icon?: string, disabled = false) {
   const b = new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(icon&&/^<a?:status_[^:]+:\d+>$/.test(icon)?ButtonStyle.Secondary:style).setDisabled(disabled);
