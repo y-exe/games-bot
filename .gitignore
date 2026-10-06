@@ -12,6 +12,8 @@ coverage/
 !tsconfig.json
 !tsconfig.check.json
 .rvc/
+docs/
+scripts/
 !assets/emoji-manifest.json
 audio/
 !assets/fonts/.gitkeep

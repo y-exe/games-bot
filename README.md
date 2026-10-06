@@ -83,13 +83,12 @@
 │   ├── services/            # AI・画像処理・音声・ネットワーク機能
 │   ├── data/                # データ保存 (SQLite / PostgreSQL)
 │   └── ui/                  # Discord UI (Components v2)
-├── scripts/                 # 登録・検証用スクリプト
 ├── assets/                  # アセットフォルダ
 │   ├── fonts/               # フォントファイル (必須)
 │   │   ├── MochiyPopOne-Regular.ttf
 │   │   └── NotoSerifJP-Black.ttf
 │   └── watermark_templates/ # ウォーターマーク用画像 (必須)
-└── docs/                    # 仕様・検証の手順
+└── .github/                 # コンテナ公開ワークフロー
 ```
 
 ## 導入手順
