@@ -14,6 +14,7 @@ export class Context {
   constructor(readonly source: Message|ChatInputCommandInteraction|ModalSubmitInteraction|ButtonInteraction, readonly client: Client, readonly args: string[] = []) {}
   get slash() { return 'options' in this.source ? this.source : undefined; }
   get modal() { return 'fields' in this.source ? this.source as ModalSubmitInteraction : undefined; }
+  get componentSource() { return 'customId' in this.source&&!('fields' in this.source)?this.source as ButtonInteraction:undefined; }
   get user() { return this.slash?.user??this.modal?.user??('user' in this.source?this.source.user:(this.source as Message).author); }
   get channel() { return this.source.channel; }
   get channelId() { return this.source.channelId??''; }
@@ -53,6 +54,11 @@ export class Context {
     if(this.modal) {
       if(this.modal.deferred||this.modal.replied)return this.deliver(await this.modal.editReply({...payload,flags:MessageFlags.IsComponentsV2}));
       await this.modal.reply({...payload,flags:MessageFlags.IsComponentsV2|(this.privateDelivery?MessageFlags.Ephemeral:0)});return this.deliver(await this.modal.fetchReply());
+    }
+    const component=this.componentSource;
+    if(component) {
+      if(component.deferred||component.replied)return this.deliver(await component.editReply({...payload,flags:MessageFlags.IsComponentsV2}));
+      await component.reply({...payload,flags:MessageFlags.IsComponentsV2|(this.privateDelivery?MessageFlags.Ephemeral:0)});return this.deliver(await component.fetchReply());
     }
     if(this.response)return this.deliver(await this.response.edit({...payload,attachments:[]} as Parameters<Message['edit']>[0]));
     this.response=this.privateDelivery?await this.user.send(payload):await (this.source as Message).reply(payload);return this.deliver(this.response);
