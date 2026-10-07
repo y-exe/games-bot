@@ -1,7 +1,8 @@
-import { Client, Events, GatewayIntentBits, MessageFlags, ActivityType, type Interaction, type Message } from 'discord.js';
+import { Client, Events, GatewayIntentBits, MessageFlags, ActivityType, Routes, type Interaction, type Message } from 'discord.js';
 import { settings, requireToken } from './config.js';
 import { loadEmojis } from './ui/emojis.js';
-import { card, disabledRawComponents } from './ui/cards.js';
+import { card, disableRawButtons } from './ui/cards.js';
+import {getDisabledMinutes,buttonExpiryMs,startButtonExpirySweep} from './ui/button-expiry.js';
 import { Store } from './data/store.js';
 import { Games, type GameKind } from './games/manager.js';
 import { Economy } from './commands/economy.js';
@@ -13,7 +14,7 @@ import { utility, handleHelp, handleSummary,handleTimeHelp,handleTimeSwitch,hand
 import { media } from './commands/media.js';
 import { MediaWorker } from './services/media.js';
 import { taxScheduler } from './services/tax.js';
-import {CommandCooldowns,channelAllowsCommand,channelAllowsComponent,expiredInteraction} from './commands/policy.js';
+import {CommandCooldowns,channelAllowsCommand,channelAllowsComponent,expiredInteraction,expiringPrefixes} from './commands/policy.js';
 import {handleAutocomplete} from './commands/autocomplete.js';
 import {exceptionCard,replyWithError,setErrorChannels} from './ui/errors.js';
 import { UserError, redact, errorReport } from './errors.js';
@@ -62,8 +63,10 @@ async function interaction(i:Interaction) {
     else if(i.isButton()||i.isStringSelectMenu()) {
       if(!channelAllowsComponent(i.customId,i.channelId,allowed))throw new UserError('このチャンネルではBot利用が**停止されています。**\n管理者が `setchannel` で再開できます。');
       if(expiredInteraction(i.customId,Date.now()-(i.message.editedTimestamp??i.message.createdTimestamp))) {
-        await i.message.edit({components:disabledRawComponents(i.message.components)}).catch(()=>{});
-        throw new UserError('このカードのボタンは5分で無効になりました。\n-# もう一度コマンドを実行してください。');
+        const selective=(id:string)=>expiringPrefixes.some(prefix=>id.startsWith(prefix));
+        await i.client.rest.patch(Routes.channelMessage(i.channelId!,i.message.id),{body:{components:disableRawButtons(i.message.components,selective),flags:MessageFlags.IsComponentsV2}}).catch(()=>{});
+        const minutes=getDisabledMinutes(i.message.id)??Math.max(1,Math.floor((Date.now()-(i.message.editedTimestamp??i.message.createdTimestamp)-buttonExpiryMs())/60_000));
+        throw new UserError(`このカードのボタンは${minutes}分前に無効になりました。\n-# もう一度コマンドを実行してください。`);
       }
       if(i.customId.startsWith('game:'))await games.handle(i);
       else if(i.isButton()&&i.customId.startsWith('replay:'))await games.replay(i);
@@ -105,7 +108,7 @@ let stopTax:(()=>void)|undefined;
 client.once(Events.ClientReady,async ready=>{
   if(ready.user.id!==settings.applicationId){console.error('トークンとアプリケーションIDが一致しません。');client.destroy();await store.close();process.exitCode=1;return;}
   ready.user.setActivity('/help | games-bot by yexe',{type:ActivityType.Custom});
-  await games.restore();stopTax=taxScheduler(store,()=>ready.user.id);console.log(`READY ${ready.user.tag} · ${settings.production?'production':'local'} · ${commandNames.size} commands · allowed channels ${allowed.size}`);
+  await games.restore();stopTax=taxScheduler(store,()=>ready.user.id);startButtonExpirySweep(ready);console.log(`READY ${ready.user.tag} · ${settings.production?'production':'local'} · ${commandNames.size} commands · allowed channels ${allowed.size}`);
 });
 client.on(Events.InteractionCreate,i=>void interaction(i));client.on(Events.MessageCreate,m=>void legacy(m));
 client.on(Events.Error,e=>console.error(`Discord接続: ${redact(e.message)}`));

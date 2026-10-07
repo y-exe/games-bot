@@ -7,7 +7,7 @@ export function channelAllowsComponent(customId:string,channelId:string,allowed:
   return !['replay:','summary:','eco:login:','again:'].some(prefix=>customId.startsWith(prefix));
 }
 export const expiringPrefixes=['help:','time:','tenki:','rate:','summary:','eco:future','eco:point','eco:poor','eco:rankings','eco:details','eco:mechanism','prompt:'];
-export function expiredInteraction(customId:string,ageMs:number,minutes=5) {
+export function expiredInteraction(customId:string,ageMs:number,minutes=10) {
   return expiringPrefixes.some(prefix=>customId.startsWith(prefix))&&ageMs>minutes*60_000;
 }
 export class CommandCooldowns {

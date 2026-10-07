@@ -33,10 +33,12 @@ export function card(title: string, body: string, status: Status = 'info', rows:
   return { flags: MessageFlags.IsComponentsV2 as const, components: [container], allowedMentions: { parse: [] as ('users'|'roles'|'everyone')[], repliedUser: false } };
 }
 export function errorCard(message: string) { return card('操作を確認してください', message.replace(/。(?!\n|$)/g,'。\n'), 'warning'); }
-export function disabledRawComponents(components:readonly unknown[]) {
+type RawComponent=Record<string,unknown>&{type:number;components?:unknown[];custom_id?:string;disabled?:boolean};
+export function disableRawButtons(components:readonly unknown[],match?:(customId:string)=>boolean):RawComponent[] {
   return components.map(component=>{
-    const data=component as {type:number;components?:{disabled?:boolean}[]};
-    if(data.type===1&&Array.isArray(data.components))return {...data,components:data.components.map(control=>({...control,disabled:true}))};
+    const data=component as RawComponent;
+    if(Array.isArray(data.components))return {...data,components:disableRawButtons(data.components,match)};
+    if((data.type===2||data.type===3)&&typeof data.custom_id==='string')return {...data,disabled:match?match(data.custom_id):true};
     return data;
   });
 }

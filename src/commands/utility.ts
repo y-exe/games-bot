@@ -3,7 +3,8 @@ import { PermissionFlagsBits, UserFlags, type ButtonInteraction, MessageFlags, B
 import { card, row, button } from '../ui/cards.js';
 import { emoji } from '../ui/emojis.js';
 import { Context } from './context.js';
-import { request, cachedFetch, weather, type Forecast } from '../services/network.js';
+import {trackExpiringButtons} from '../ui/button-expiry.js';
+import {request, cachedFetch, weather, type Forecast } from '../services/network.js';
 import { Store } from '../data/store.js';
 import { conversationSummary } from '../services/conversation.js';
 import {commands,slashCommands} from './definitions.js';
@@ -44,7 +45,7 @@ export function timeCard(code:string) {
 export async function handleTimeSwitch(i:ButtonInteraction) {
   const code=(i.customId.split(':')[1]??'').toUpperCase();
   const payload=timeCard(code)??card('無効な国コード',`\`${code}\` は見つかりませんでした。`,'warning',[row(button('time:help','国コード一覧を表示',ButtonStyle.Secondary,emoji('status_info')))]);
-  await i.deferUpdate();await i.editReply(payload);
+  await i.deferUpdate();trackExpiringButtons(await i.editReply(payload));
 }
 export async function handleTimeHelp(i:ButtonInteraction) {
   await i.reply({...timeHelpCard(),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
@@ -59,7 +60,7 @@ export function weatherCard(data:Forecast) {
 }
 export async function handleTenkiSwitch(i:ButtonInteraction) {
   const city=i.customId.split(':')[1]??'';
-  await i.deferUpdate();await i.editReply(weatherCard(await weather(city)));
+  await i.deferUpdate();trackExpiringButtons(await i.editReply(weatherCard(await weather(city))));
 }
 export async function rateCard(amountInput:string|number,codeInput:string) {
   const {amount,code}=exchangeInput(amountInput,codeInput);
@@ -72,7 +73,7 @@ export async function rateCard(amountInput:string|number,codeInput:string) {
 }
 export async function handleRateSwitch(i:ButtonInteraction) {
   const [,amount,code]=i.customId.split(':');
-  await i.deferUpdate();await i.editReply(await rateCard(amount??'',code??''));
+  await i.deferUpdate();trackExpiringButtons(await i.editReply(await rateCard(amount??'',code??'')));
 }
 export function help(category='home') {
   if(category==='all')return commandListCard();
