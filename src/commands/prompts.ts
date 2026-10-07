@@ -1,4 +1,4 @@
-import { ButtonStyle, CheckboxBuilder, ComponentType, FileUploadBuilder, LabelBuilder, ModalBuilder, RadioGroupBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder, type ButtonInteraction, type Client, type ModalSubmitInteraction, type SelectMenuModalData, type TextInputModalData } from 'discord.js';
+import { ButtonStyle, CheckboxBuilder, ComponentType, FileUploadBuilder, LabelBuilder, ModalBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder, type ButtonInteraction, type Client, type ModalSubmitInteraction, type SelectMenuModalData, type TextInputModalData } from 'discord.js';
 import { Context } from './context.js';
 import { card, button, row } from '../ui/cards.js';
 import { emoji } from '../ui/emojis.js';
@@ -7,7 +7,7 @@ import { exceptionCard, isPublicChannel } from '../ui/errors.js';
 import { postErrorLog } from '../services/error-log.js';
 
 interface PromptField {
-  kind:'text'|'file'|'checkbox'|'radio'|'select'|'user';
+  kind:'text'|'file'|'checkbox'|'select'|'user';
   id:string;label:string;
   required?:boolean;maxLength?:number;paragraph?:boolean;placeholder?:string;
   minValues?:number;maxValues?:number;
@@ -84,8 +84,6 @@ export function buildModal(name:string):ModalBuilder|undefined {
       label.setCheckboxComponent(new CheckboxBuilder().setCustomId(field.id));
     } else if(field.kind==='select') {
       label.setStringSelectMenuComponent(new StringSelectMenuBuilder().setCustomId(field.id).setMinValues(1).setMaxValues(1).addOptions(...(field.options??[]).map(option=>({label:option.label,value:option.value,default:option.default}))));
-    } else if(field.kind==='radio') {
-      label.setRadioGroupComponent(new RadioGroupBuilder().setCustomId(field.id).addOptions(...(field.options??[]).map(option=>({label:option.label,value:option.value,default:option.default}))));
     } else {
       label.setUserSelectMenuComponent(new UserSelectMenuBuilder().setCustomId(field.id).setMinValues(field.minValues??1).setMaxValues(field.maxValues??1));
     }

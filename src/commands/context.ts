@@ -35,14 +35,6 @@ export class Context {
     for(const data of this.modal?.fields.fields.values()??[])if(data.type===ComponentType.FileUpload)return (data as FileUploadModalData).attachments.first();
     return 'attachments' in this.source?this.source.attachments.first():undefined;
   }
-  modalCheckbox(id:string):boolean|undefined {
-    for(const data of this.modal?.fields.fields.values()??[])if(data.customId===id&&data.type===ComponentType.Checkbox)return data.value;
-    return undefined;
-  }
-  modalRadio(id:string):string|undefined {
-    for(const data of this.modal?.fields.fields.values()??[])if(data.customId===id&&data.type===ComponentType.RadioGroup)return data.value??undefined;
-    return undefined;
-  }
   async prepare(privateReply=false) {
     if(this.slash)this.privateDelivery=this.privateDelivery||privateReply;
     if(this.slash&&!this.slash.deferred&&!this.slash.replied)await this.slash.deferReply({flags:this.privateDelivery?MessageFlags.Ephemeral:undefined});

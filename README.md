@@ -116,7 +116,7 @@ DATA_DIR=/app/state
 
 ### ローカル検証
 
-Docker Desktop を起動した状態で、`.env.template` を `.env` にコピーして
+Docker Desktop を起動した状態で、`.env.example` を `.env` にコピーして
 `DISCORD_BOT_TOKEN` を設定し、次を実行します。
 
 ```bash
