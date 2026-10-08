@@ -21,6 +21,7 @@ import { UserError, redact, errorReport } from './errors.js';
 import { authorizeChannel } from './commands/delivery.js';
 import { promptSpecs, promptCard, needsPrompt, buildModal, handlePromptSubmit, openPrompt } from './commands/prompts.js';
 
+requireToken();
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent]});
 if(settings.production&&!settings.databaseUrl)throw new UserError('本番起動にはDATABASE_URLが必要です。');
 const store=new Store();

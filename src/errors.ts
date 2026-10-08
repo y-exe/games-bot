@@ -23,11 +23,9 @@ export function redact(text:string) {
 export function errorReport(error:unknown,operation:string) {
   const id=randomUUID().slice(0,8),friendly=error instanceof UserError;
   const message=redact(error instanceof Error?error.message:'詳細不明の例外が発生しました。').replace(/。(?!\n|$)/g,'。\n').slice(0,700);
-  const fields=error&&typeof error==='object'?error as {code?:unknown;status?:unknown;name?:unknown}:{};
-  const codes=[fields.name,fields.code,fields.status].filter(v=>typeof v==='number'||typeof v==='string').map(v=>redact(String(v)).replace(/[\r\n`]/g,' ').slice(0,80));
   const stack=redact(error instanceof Error?error.stack??message:message).replaceAll('```','\u02cb\u02cb\u02cb').split('\n').slice(0,8).join('\n').slice(0,1400);
   const cause=error instanceof Error&&error.cause instanceof Error?redact(`${error.cause.name}: ${error.cause.message}`).replaceAll('`','').slice(0,250):'';
   const context=redact(operation).replaceAll('`','').slice(0,100);
   if(!friendly)console.error(`[error:${id}] ${context}\n${stack}${cause?`\n原因: ${cause}`:''}`);
-  return {id,friendly,message,body:friendly?message:`**処理中にエラーが発生しました。**\n時間をおいて、もう一度お試しください。\n\n**エラーID** · \`${id}\`\n**操作** · \`${context}\`\n**種類 / コード** · \`${codes.join(' / ')||'不明'}\`${cause?`\n**原因** · ${cause}`:''}\n\n**デバッグ情報**\n\`\`\`text\n${stack}\n\`\`\``};
+  return {id,friendly,message,body:friendly?message:`処理を完了できませんでした。時間をおいて再試行してください。\nエラーID: \`${id}\``};
 }

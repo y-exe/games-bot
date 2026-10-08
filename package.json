@@ -14,7 +14,8 @@
     "commands": "tsx scripts/register-commands.ts",
     "emojis": "tsx scripts/sync-emojis.ts",
     "doctor": "tsx scripts/doctor.ts",
-    "data:snapshot": "tsx scripts/snapshot-data.ts"
+    "data:snapshot": "tsx scripts/snapshot-data.ts",
+    "test:security": "tsx --test tests/*.test.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.10",
