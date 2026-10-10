@@ -10,6 +10,7 @@ import { settings } from '../config.js';
 import {rewards,botRewards,othelloReward} from '../data/rewards.js';
 import {formatAmount} from '../data/money.js';
 import {exceptionCard} from '../ui/errors.js';
+import {requireButtonOwner} from '../commands/button-owner.js';
 
 export type GameKind = 'othello' | 'connectfour' | 'janken' | 'highlow';
 type Hand = keyof typeof handEmojis;
@@ -24,6 +25,7 @@ const names: Record<GameKind,string> = {othello:'オセロ',connectfour:'四目�
 const recruitmentTimeout:Record<GameKind,number>={othello:300_000,connectfour:300_000,janken:180_000,highlow:120_000};
 function playingTimeout(kind:GameKind){return kind==='janken'||kind==='highlow'?60_000:settings.turnTimeoutMs;}
 export class Games {
+  private replays=new Map<string,{owner:string;kind:GameKind;size:number;bet:string;channelId:string;expires:number}>();
   readonly sessions = new Map<string,Session>();
   private locks = new Map<string,Promise<unknown>>();
   private timer?: NodeJS.Timeout;
@@ -86,7 +88,11 @@ export class Games {
       controls.push(s.kind==='janken'?row(...(Object.entries(handEmojis) as [Hand,string][]).map(([h,e])=>button(this.id(s,h),h==='rock'?'グー':h==='scissors'?'チョキ':'パー',ButtonStyle.Primary,e))):row(button(this.id(s,'high'),'HIGH',ButtonStyle.Primary,'⬆️'),button(this.id(s,'low'),'LOW',ButtonStyle.Secondary,'⬇️')));
       controls.push(row(button(this.id(s,'leave'),'対戦を終了',ButtonStyle.Secondary)));
     }
-    if(s.phase==='finished')controls.push(row(button(`replay:${s.kind}:${s.size}:${s.bet}`,'もう一度募集する',ButtonStyle.Primary,emoji('status_pending'))));
+    if(s.phase==='finished') {
+      for(const [key,replay] of this.replays)if(replay.expires<=Date.now())this.replays.delete(key);
+      this.replays.set(s.id,{owner:s.host,kind:s.kind,size:s.size,bet:s.bet,channelId:s.channelId,expires:Date.now()+600_000});
+      controls.push(row(button(`replay:${s.id}`,'もう一度募集する',ButtonStyle.Primary,emoji('status_pending'))));
+    }
     const accent=s.board?(s.kind==='othello'?(s.phase==='finished'?0x607d8b:0x2ecc71):(s.phase==='finished'?(s.board.winner===0?0x979c9f:0xf1c40f):0x3498db)):(s.phase==='finished'&&s.kind==='janken'&&['success','info'].includes(s.resultStatus??'success')?0xf1c40f:undefined);
     const result=card(`${names[s.kind]}${s.kind==='othello'?` (${s.size}×${s.size})`:''}${s.phase==='finished'?' · 結果':''}`,body,s.phase==='finished'?(s.resultStatus??'success'):s.phase==='recruiting'?'pending':'info',controls,`対戦 #${s.id.slice(0,8)}`,undefined,undefined,accent);
     return {...result,files:[],attachments:[]};
@@ -251,6 +257,7 @@ export class Games {
       }catch(e){console.error(`対戦復旧失敗: ${e instanceof Error?e.message:'unknown'}`);}
     }
     this.timer=setInterval(()=>{
+      for(const [key,replay] of this.replays)if(replay.expires<=Date.now())this.replays.delete(key);
       for(const s of this.sessions.values())if(s.expires<=Date.now())void this.locked(s.id,async()=>{if(this.sessions.has(s.id)&&s.expires<=Date.now())await this.expire(s);}).catch(e=>console.error(`期限処理: ${e instanceof Error?e.message:'unknown'}`));
     },10_000);this.timer.unref();
   }
@@ -264,10 +271,11 @@ export class Games {
     return card('対戦を終了しますか？',s.phase==='recruiting'?'募集を取り消します。':s.board?'投了すると **負け扱い** になります。':s.kind==='highlow'?'賭け金を **両者に返金** して終了します。':'対戦を終了します。','warning',[row(button(this.id(s,`${s.phase==='recruiting'?'cancel':`resign${userId}`}~${expires}`),'はい、終了する',ButtonStyle.Danger),button(this.id(s,`keep${userId}~${expires}`),'いいえ、続ける',ButtonStyle.Secondary))],'確認は30秒以内');
   }
   async replay(i:ButtonInteraction) {
-    const [,kind,size,bet]=i.customId.split(':');
-    if(!['othello','connectfour','janken','highlow'].includes(kind??''))throw new UserError('ゲームが見つかりません。');
+    const replay=this.replays.get(i.customId.slice('replay:'.length));
+    if(!replay||replay.expires<=Date.now()||replay.channelId!==i.channelId)throw new UserError('このボタンは期限切れです。自分でゲームのコマンドを実行してください。');
+    requireButtonOwner(replay.owner,i.user.id);
     await i.deferReply();
-    return this.create(kind as GameKind,i.user.id,i.channelId,async p=>{await i.editReply(p);return i.fetchReply();},undefined,Number(size),BigInt(bet??'0'));
+    return this.create(replay.kind,i.user.id,i.channelId,async p=>{await i.editReply(p);return i.fetchReply();},undefined,replay.size,BigInt(replay.bet));
   }
   async close() { if(this.timer)clearInterval(this.timer);for(const timer of this.leaveTimers.values())clearTimeout(timer);this.leaveTimers.clear();await Promise.allSettled(this.locks.values()); }
 }

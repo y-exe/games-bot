@@ -11,6 +11,7 @@ import {rollGamble,diceDelta} from '../data/gamble.js';
 import {transferFee,formatAmount} from '../data/money.js';
 import {exceptionCard,isPublicChannel} from '../ui/errors.js';
 import {postErrorLog} from '../services/error-log.js';
+import {requireButtonOwner} from './button-owner.js';
 
 interface Confirm { owner:string; target?:string; amount?:bigint; kind:'give'|'gamble'; expires:number; channelId:string;message?:Message }
 function loginCard(result:Awaited<ReturnType<Store['login']>>,owner:string,now=new Date()) {
@@ -34,6 +35,7 @@ export function loginForecastCard(account:{lastLogin:string|null;consecutive:num
   return card('今後のログインボーナス',`**現在の順位** · \`${rank>0?`${rank}位`:'圏外'}\`\n${today}\n\n**今後7日間の報酬**\n${upcoming.map(d=>`> **${d.offset===1?'明日':`${d.offset}日後`}**（${d.date.slice(5)} / ${d.days}日目） · **\`+${formatAmount(d.points)}pt\`**`).join('\n')}\n-# 今日から毎日受け取り、現在の順位が続く場合の予測です。\n-# 順位の変動や受取忘れで報酬は変わります。`,'info',pending?[row(button(`eco:login:${owner}`,'今日のログボを受け取る',ButtonStyle.Success,emoji('status_success')))]:[],undefined,undefined,undefined,0x1abc9c);
 }
 export class Economy {
+  private repeats=new Map<string,{owner:string;amount:string;channelId:string;expires:number}>();
   private confirms=new Map<string,Confirm>();
   private details=new Map<string,{channelId:string;expires:number;body:string;expire?:()=>Promise<unknown>}>();
   private timer:NodeJS.Timeout;
@@ -42,6 +44,7 @@ export class Economy {
     this.timer.unref();
   }
   async expire(now=Date.now()) {
+    for(const [key,data] of this.repeats)if(data.expires<=now)this.repeats.delete(key);
     const expired=[...this.confirms].filter(([,v])=>v.expires<=now);
     for(const [key,data] of expired) {
       this.confirms.delete(key);
@@ -50,6 +53,19 @@ export class Economy {
     for(const [key,data] of this.details)if(data.expires<=now){this.details.delete(key);if(data.expire)await data.expire().catch(()=>{});}
   }
   close() {clearInterval(this.timer);}
+  repeatAction(i:Pick<ButtonInteraction,'customId'|'user'|'channelId'>) {
+    const [prefix,kind,key,...extra]=i.customId.split(':');
+    if(prefix!=='again'||extra.length)throw new UserError('この操作は期限切れです。コマンドを開き直してください。');
+    if(kind==='gamble') {
+      requireButtonOwner(key,i.user.id);
+      return {kind,args:[]} as const;
+    }
+    if(kind!=='bet')throw new UserError('この操作は期限切れです。コマンドを開き直してください。');
+    const repeat=this.repeats.get(key??'');
+    if(!repeat||repeat.expires<=Date.now()||repeat.channelId!==i.channelId)throw new UserError('このボタンは期限切れです。自分で `bet` を実行してください。');
+    requireButtonOwner(repeat.owner,i.user.id);
+    return {kind,args:[repeat.amount]} as const;
+  }
   async run(name:string,ctx:Context) {
     if(name==='point') {
       const points=await this.store.balance(ctx.user.id);const ranks=await this.store.ranking(this.botId());const rank=await this.store.rank(ctx.user.id,this.botId());const poor=await this.store.poorRanking(this.botId());
@@ -71,7 +87,9 @@ export class Economy {
         const account=a.get(ctx.user.id)!;if(account.points<amount)throw new UserError(`残高不足です。現在 ${account.points}pt あります。`);
         account.points+=delta;return account.points;
       });
-      return ctx.send(card('ダイスベット結果',`${emoji(`${dice}_o`)} **${['大凶','凶','小吉','吉','中吉','大吉'][dice-1]}**\n${['賭け金を失いました。','賭け金の半分を失いました。','賭け金の半分を失いました。','ポイントは変わりません。','賭け金の半分を獲得。','賭け金と同額を獲得！'][dice-1]}\n<@${ctx.user.id}> · ベット **${formatAmount(amount)}pt**\n\n**ポイント変動** · **${delta>=0n?'+':''}${formatAmount(delta)}pt**\n**現在のポイント** · **${formatAmount(balance)}pt**`,delta>=0n?'success':'warning',[row(button(`again:bet:${amount}`,'もう一度bet',ButtonStyle.Primary,emoji(`${dice}_o`)),button(`eco:point:${ctx.user.id}`,'残高・順位を見る',ButtonStyle.Secondary,emoji('status_info')))],undefined,undefined,undefined,0x9b59b6));
+      const repeatKey=randomUUID();
+      this.repeats.set(repeatKey,{owner:ctx.user.id,amount:String(amount),channelId:ctx.channelId,expires:Date.now()+600_000});
+      return ctx.send(card('ダイスベット結果',`${emoji(`${dice}_o`)} **${['大凶','凶','小吉','吉','中吉','大吉'][dice-1]}**\n${['賭け金を失いました。','賭け金の半分を失いました。','賭け金の半分を失いました。','ポイントは変わりません。','賭け金の半分を獲得。','賭け金と同額を獲得！'][dice-1]}\n<@${ctx.user.id}> · ベット **${formatAmount(amount)}pt**\n\n**ポイント変動** · **${delta>=0n?'+':''}${formatAmount(delta)}pt**\n**現在のポイント** · **${formatAmount(balance)}pt**`,delta>=0n?'success':'warning',[row(button(`again:bet:${repeatKey}`,'もう一度bet',ButtonStyle.Primary,emoji(`${dice}_o`)),button(`eco:point:${ctx.user.id}`,'残高・順位を見る',ButtonStyle.Secondary,emoji('status_info')))],undefined,undefined,undefined,0x9b59b6));
     }
     const key=randomUUID();const data: Confirm={owner:ctx.user.id,kind:name as 'give'|'gamble',expires:Date.now()+60_000,channelId:ctx.channelId};
     let body='';
@@ -158,6 +176,6 @@ export class Economy {
     });
     this.details.set(key,{channelId:data.channelId,expires:Date.now()+180_000,body:`**1. 賭け金の決定**\n所持ポイント: \`${formatAmount(result.current)}pt\`\nベット: **\`${formatAmount(result.stake)}pt\`**\n\n**2. 倍率の抽選**\n抽選結果: **\`${(result.multiplier/100).toFixed(2)}倍\`**\n85%で±1.51〜3.00倍 / 13%で±3.01〜5.00倍 / 2%で±5.01〜10.00倍。\n\n**3. ポイント変動**\n\`(${formatAmount(result.stake)} × ${(result.multiplier/100).toFixed(2)}) − ${formatAmount(result.stake)}\`\n> **${result.delta>=0n?'+':''}${formatAmount(result.delta)}pt** → 残高 **${formatAmount(result.balance)}pt**${result.current<=0n&&result.balance>0n?'\n🎉 **借金からの帰還！**':''}\n-# 掛け算の小数部分を0方向に切り捨ててから賭け金を引きます。`});
     const outcome=result.multiplier>500?{text:'🎉 __**超大当たり！！**__',color:0xf1c40f}:result.multiplier>300?{text:'🎊 **大当たり！**',color:0x2ecc71}:result.multiplier< -500?{text:'💀 __**世紀の大失敗！！**__',color:0x640000}:result.multiplier< -300?{text:'💸 **大失敗…**',color:0xe74c3c}:result.multiplier>0?{text:'**ちょい勝ち！**',color:0x979c9f}:{text:'**ちょい負け…**',color:0x607d8b};
-    return card('ハイリスクギャンブル · 結果',`<@${data.owner}> が **\`${formatAmount(result.stake)}pt\`** をベット · 結果は **\`${(result.multiplier/100).toFixed(2)}倍\`**\n> ${outcome.text}\n**ポイント変動** · **\`${result.delta>=0n?'+':''}${formatAmount(result.delta)}pt\`**\n**現在のポイント** · \`${formatAmount(result.balance)}pt\`\n-# 今日の残り: ${result.balance>0n?`${Math.max(0,5-result.count)}回`:'無制限（救済措置）'}`,result.delta>=0n?'success':'warning',[row(button('again:gamble','もう一度ギャンブル',ButtonStyle.Primary),button(`eco:details:${key}`,'仕組み',ButtonStyle.Secondary,'⚙️'))],undefined,undefined,undefined,outcome.color);
+    return card('ハイリスクギャンブル · 結果',`<@${data.owner}> が **\`${formatAmount(result.stake)}pt\`** をベット · 結果は **\`${(result.multiplier/100).toFixed(2)}倍\`**\n> ${outcome.text}\n**ポイント変動** · **\`${result.delta>=0n?'+':''}${formatAmount(result.delta)}pt\`**\n**現在のポイント** · \`${formatAmount(result.balance)}pt\`\n-# 今日の残り: ${result.balance>0n?`${Math.max(0,5-result.count)}回`:'無制限（救済措置）'}`,result.delta>=0n?'success':'warning',[row(button(`again:gamble:${data.owner}`,'もう一度ギャンブル',ButtonStyle.Primary),button(`eco:details:${key}`,'仕組み',ButtonStyle.Secondary,'⚙️'))],undefined,undefined,undefined,outcome.color);
   }
 }

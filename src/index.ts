@@ -80,10 +80,9 @@ async function interaction(i:Interaction) {
       else if(i.isButton()&&i.customId.startsWith('summary:'))await handleSummary(i);
       else if(i.isButton()&&i.customId.startsWith('editor:'))await editor.handle(i);
       else if(i.isButton()&&i.customId.startsWith('again:')) {
-        const [,kind,amount]=i.customId.split(':');
-        if(!['bet','gamble'].includes(kind??''))throw new UserError('この操作は期限切れです。コマンドを開き直してください。');
-        cooldowns.take(i.user.id,kind!);
-        await economy.run(kind as 'bet'|'gamble',new Context(i,client,kind==='bet'?[amount??'']:[]));
+        const repeat=economy.repeatAction(i);
+        cooldowns.take(i.user.id,repeat.kind);
+        await economy.run(repeat.kind,new Context(i,client,[...repeat.args]));
       }
       else if(i.isButton()&&i.customId.startsWith('prompt:'))await openPrompt(i);
       else throw new UserError('この操作は期限切れです。コマンドを開き直してください。');
