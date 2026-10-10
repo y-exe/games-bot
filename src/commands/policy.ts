@@ -4,7 +4,7 @@ export function cooldownMs(name:string){return (seconds[name]??2)*1000;}
 export function channelAllowsCommand(name:string,channelId:string,allowed:ReadonlySet<string>){return ['setchannel','imakita'].includes(name)||allowed.has(channelId);}
 export function channelAllowsComponent(customId:string,channelId:string,allowed:ReadonlySet<string>) {
   if(allowed.has(channelId))return true;
-  return !['replay:','summary:','eco:login:','again:'].some(prefix=>customId.startsWith(prefix));
+  return !['replay:','eco:login:','again:'].some(prefix=>customId.startsWith(prefix));
 }
 export const expiringPrefixes=['help:','time:','tenki:','rate:','summary:','eco:future','eco:point','eco:poor','eco:rankings','eco:details','eco:mechanism','prompt:'];
 export function expiredInteraction(customId:string,ageMs:number,minutes=10) {
