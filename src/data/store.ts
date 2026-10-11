@@ -21,13 +21,28 @@ CREATE TABLE IF NOT EXISTS games_bot_events(event_id text PRIMARY KEY, created_a
 CREATE TABLE IF NOT EXISTS games_bot_sessions(session_id text PRIMARY KEY, payload text NOT NULL);
 `;
 function dateString(value: unknown): string | null { return value instanceof Date ? value.toISOString().slice(0,10) : value ? String(value).slice(0,10) : null; }
+// vps側の運用要件: PostgreSQLは全TCP接続でTLSを強制(hostssl)し、自己署名証明書を使う。
+// pg v8は素の`sslmode=require`をverify-full扱いして自己署名で失敗するため、
+// 本番のTCP接続では`?sslmode=require&uselibpqcompat=true`が必須。
+// DATABASE_URLに欠けていればここで補い、原因不明のエラーID化を防ぐ。
+export function normalizeDatabaseUrl(url: string, production = settings.production): string {
+  if (!url || !production) return url;
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return url; }
+  if (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') return url;
+  if (!parsed.hostname || parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1') return url;
+  const params = parsed.searchParams;
+  if (!params.has('sslmode')) params.set('sslmode', 'require');
+  if (!params.has('uselibpqcompat')) params.set('uselibpqcompat', 'true');
+  return parsed.toString();
+}
 export class Store {
   private sqlite?: DatabaseSync;
   private pool?: Pool;
   private tail: Promise<unknown> = Promise.resolve();
   constructor(private url = settings.databaseUrl, private dir = settings.dataDir) {}
   async initialize() {
-    if (this.url) { this.pool = new Pool({ connectionString: this.url, max: 4 }); await this.pool.query(schema); await this.pool.query(`DO $$ BEGIN
+    if (this.url) { this.pool = new Pool({ connectionString: normalizeDatabaseUrl(this.url), max: 4 }); await this.pool.query(schema); await this.pool.query(`DO $$ BEGIN
         PERFORM pg_advisory_xact_lock(hashtextextended('games-bot-points-schema',0));
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='games_bot_economy' AND column_name='points' AND data_type='bigint') THEN
           ALTER TABLE games_bot_economy ALTER COLUMN points TYPE numeric USING points::numeric;
