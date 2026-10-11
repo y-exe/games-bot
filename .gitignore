@@ -7,7 +7,6 @@ dist/
 coverage/
 *.json
 !package.json
-!package-lock.json
 !tsconfig.json
 !tsconfig.check.json
 .rvc/
