@@ -1,25 +1,24 @@
-FROM node:22-bookworm-slim AS build
-RUN corepack enable
+FROM oven/bun:1.3.14-debian AS build
 WORKDIR /app
-COPY package.json pnpm-lock.yaml tsconfig.json ./
-RUN pnpm install --frozen-lockfile
+COPY package.json bun.lock bunfig.toml tsconfig.json ./
+RUN bun install --frozen-lockfile
 COPY src ./src
-RUN pnpm run build
+RUN bun run build
 
-FROM node:22-bookworm-slim AS runtime
-RUN corepack enable
+FROM oven/bun:1.3.14-debian AS runtime
 ENV NODE_ENV=production DATA_DIR=/app/state
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 bot && useradd --uid 10001 --gid 10001 --create-home bot \
     && mkdir -p /app/state && chown -R bot:bot /app
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+COPY package.json bun.lock bunfig.toml ./
+RUN bun install --frozen-lockfile --production
 COPY --from=build --chown=bot:bot /app/dist ./dist
 COPY --chown=bot:bot assets ./assets
 USER bot
-CMD ["node", "dist/index.js"]
+RUN bun --no-env-file -e 'import {MediaWorker} from "./dist/services/media.js"; import sharp from "sharp"; const worker=new MediaWorker(); try {const bytes=await worker.run({kind:"text",text:"Bun",square:true}); if((await sharp(bytes).metadata()).format!=="png")throw new Error("画像Workerの起動検証に失敗しました。");} finally {await worker.close();}'
+CMD ["bun", "--no-env-file", "dist/index.js"]
 
 FROM python:3.10-slim-bookworm AS rvc-dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends git build-essential ffmpeg \

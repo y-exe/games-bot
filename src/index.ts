@@ -2,7 +2,7 @@ import { Client, Events, GatewayIntentBits, MessageFlags, ActivityType, Routes, 
 import { settings, requireToken } from './config.js';
 import { loadEmojis } from './ui/emojis.js';
 import { card, disableRawButtons } from './ui/cards.js';
-import {getDisabledMinutes,buttonExpiryMs,startButtonExpirySweep} from './ui/button-expiry.js';
+import {getDisabledAt,buttonExpiryMs,startButtonExpirySweep} from './ui/button-expiry.js';
 import { Store } from './data/store.js';
 import { Games, type GameKind } from './games/manager.js';
 import { Economy } from './commands/economy.js';
@@ -66,8 +66,8 @@ async function interaction(i:Interaction) {
       if(expiredInteraction(i.customId,Date.now()-(i.message.editedTimestamp??i.message.createdTimestamp))) {
         const selective=(id:string)=>expiringPrefixes.some(prefix=>id.startsWith(prefix));
         await i.client.rest.patch(Routes.channelMessage(i.channelId!,i.message.id),{body:{components:disableRawButtons(i.message.components,selective),flags:MessageFlags.IsComponentsV2}}).catch(()=>{});
-        const minutes=getDisabledMinutes(i.message.id)??Math.max(1,Math.floor((Date.now()-(i.message.editedTimestamp??i.message.createdTimestamp)-buttonExpiryMs())/60_000));
-        throw new UserError(`このカードのボタンは${minutes}分前に無効になりました。\n-# もう一度コマンドを実行してください。`);
+        const disabledAt=getDisabledAt(i.message.id)??(i.message.editedTimestamp??i.message.createdTimestamp)+buttonExpiryMs();
+        throw new UserError(`このカードのボタンは <t:${Math.floor(disabledAt/1000)}:R> に無効になりました。\n-# もう一度コマンドを実行してください。`);
       }
       if(i.customId.startsWith('game:'))await games.handle(i);
       else if(i.isButton()&&i.customId.startsWith('replay:'))await games.replay(i);

@@ -20,9 +20,8 @@ export function trackExpiringButtons(message:{id:string;channelId:string;compone
   if(!walkHasExpiring(message.components))return;
   entries.set(message.id,{channelId:message.channelId,messageId:message.id,expires:Date.now()+buttonExpiryMs()});
 }
-export function getDisabledMinutes(messageId:string,now=Date.now()):number|undefined {
-  const at=disabledAt.get(messageId);
-  return at?Math.max(1,Math.floor((now-at)/60_000)):undefined;
+export function getDisabledAt(messageId:string):number|undefined {
+  return disabledAt.get(messageId);
 }
 async function disableNow(client:Client,e:Entry) {
   const message=await client.channels.fetch(e.channelId).then(channel=>channel?.isTextBased()&&'messages' in channel?channel.messages.fetch(e.messageId).catch(()=>undefined):undefined);

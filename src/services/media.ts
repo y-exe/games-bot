@@ -1,5 +1,4 @@
 import { Worker } from 'node:worker_threads';
-import { fileURLToPath } from 'node:url';
 import type { MediaJob } from './media-worker.js';
 export interface MediaResult {bytes:Buffer;template?:string;resized?:boolean}
 
@@ -14,7 +13,7 @@ export class MediaWorker {
     if(this.pending.size>=4)return Promise.reject(new Error('画像処理が混み合っています。少し待ってから再試行してください。'));
     if(!this.worker) {
       const dev=import.meta.url.endsWith('.ts');const url=new URL(dev?'./media-worker.ts':'./media-worker.js',import.meta.url);
-      this.worker=dev?new Worker(`require('tsx/cjs'); require(${JSON.stringify(fileURLToPath(url))});`,{eval:true}):new Worker(url);
+      this.worker=new Worker(url);
       this.worker.on('message',({id,bytes,error,template,resized}:{id:number;bytes:Uint8Array;error?:string;template?:string;resized?:boolean})=>{const p=this.pending.get(id);if(!p)return;clearTimeout(p.timer);this.pending.delete(id);if(error)p.reject(new Error(error));else p.resolve({bytes:Buffer.from(bytes),template,resized});if(!this.pending.size)this.worker?.unref();});
       this.worker.on('error',e=>this.failed(e));this.worker.on('exit',code=>{if(code)this.failed(new Error('画像処理プロセスが終了しました。再試行してください。'));this.worker=undefined;});
     }

@@ -81,7 +81,7 @@
 │   ├── commands/            # コマンド定義・入力フォーム
 │   ├── games/               # ゲームロジック
 │   ├── services/            # AI・画像処理・音声・ネットワーク機能
-│   ├── data/                # データ保存 (SQLite / PostgreSQL)
+│   ├── data/                # データ保存 (ローカルPGlite / 本番PostgreSQL)
 │   └── ui/                  # Discord UI (Components v2)
 ├── assets/                  # アセットフォルダ
 │   ├── fonts/               # フォントファイル (必須)
@@ -95,11 +95,16 @@
 
 ### ライブラリ
 ```bash
-npm ci
-npm run build
+bun install --frozen-lockfile
+bun run typecheck
+bun run build
+bun run test:security
 ```
 
 ### 環境変数
+
+ランタイムはBun 1.3.14以上です。ローカルは `.env.local` と `DATA_DIR/pglite` を使い、本番はPostgreSQLへ接続します。既存の `DATA_DIR/bot.sqlite` は読み取り専用で一度だけPGliteへ移行し、元ファイルは残します。ローカル起動は `bun run dev`、ビルド後は `bun run start` です。
+
 ```env
 DISCORD_BOT_TOKEN=
 DISCORD_APPLICATION_ID=
