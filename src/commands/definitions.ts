@@ -17,7 +17,7 @@ export const commands = [
   ...['watermark','gaming'].map(name=>basic(name,name==='gaming'?'画像を七色に光るGIFにする':'画像に端末などのテンプレートを合成する').addAttachmentOption(o=>o.setName('image').setDescription('加工する画像').setRequired(true))),
   basic('5000','5000兆円欲しい風の文字画像').addStringOption(o=>o.setName('top').setDescription('上の文字').setRequired(true)).addStringOption(o=>o.setName('bottom').setDescription('下の文字').setRequired(true)).addBooleanOption(o=>o.setName('hoshii').setDescription('欲しい！を追加する')).addBooleanOption(o=>o.setName('rainbow').setDescription('虹色にする')),
   basic('voice','VOICEVOX読み上げ・やまかわボイチェン').addStringOption(o=>o.setName('text').setDescription('読み上げるテキスト').setMaxLength(200)).addAttachmentOption(o=>o.setName('audio').setDescription('変換する45秒以内の音声')).addBooleanOption(o=>o.setName('convert').setDescription('やまかわボイチェンを使う（既定: 有効）')),
-  basic('imakita','直近30分の会話を3行で要約する'),
+  basic('imakita','選んだ時間範囲の会話を3行で要約する').addIntegerOption(o=>o.setName('minutes').setDescription('要約する範囲（省略: 30分）').addChoices({name:'過去10分',value:10},{name:'過去30分',value:30},{name:'過去60分',value:60})),
   basic('tenki','日本の都市の天気予報を見る').addStringOption(o=>o.setName('city').setDescription('都市名').setRequired(true).setAutocomplete(true)),
   basic('rate','外貨を日本円に換算する').addNumberOption(o=>o.setName('amount').setDescription('外貨の金額').setRequired(true)).addStringOption(o=>o.setName('currency').setDescription('通貨コード（USDなど）').setRequired(true).setMinLength(3).setMaxLength(3).setAutocomplete(true)),
   basic('time','日本や世界の現在時刻を見る').addStringOption(o=>o.setName('country').setDescription('JP・US・GBなどの国コード').setMaxLength(2).setAutocomplete(true)),

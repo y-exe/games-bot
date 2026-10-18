@@ -6,7 +6,8 @@ import { Context } from './context.js';
 import {trackExpiringButtons} from '../ui/button-expiry.js';
 import {request, cachedFetch, weather, type Forecast } from '../services/network.js';
 import { Store } from '../data/store.js';
-import { conversationSummary } from '../services/conversation.js';
+import { conversationSummary,parseSummaryMinutes } from '../services/conversation.js';
+import {summaryCard,summaryAction} from '../ui/summary.js';
 import {commands,slashCommands} from './definitions.js';
 import {settings} from '../config.js';
 import {suddenDeath} from '../ui/sudden-death.js';
@@ -82,7 +83,7 @@ export function help(category='home') {
     games:`**対戦でポイントを稼ぐ**\n- \`othello (@相手)\` · 勝利 **${othelloReward(6,0).win}〜${othelloReward(10,100).win}pt**\n-# 6マス: 120＋石差×2 / 8マス: 150＋石差×3 / 10マス: 210＋石差×5\n-# 引分30〜50pt · 敗北−30〜−45pt · 投了での勝利は90〜650pt\n- \`connectfour (@相手)\` · 勝利 **+${rewards.connectfour.win}pt** / 引分 **+${rewards.connectfour.draw}pt** / 敗北 **${rewards.connectfour.lose}pt**\n- \`janken (@相手)\` · 勝利 **+${rewards.janken.win}pt** / 引分 **+${rewards.janken.draw}pt** / 敗北 **${rewards.janken.lose}pt**\n- \`highlow 賭け金 (@相手)\` · 単独正解で賭け金の **2倍**を受取\n-# 両者正解は返金、両者不正解は没収\n- \`leave\` · 確認して対戦を終了\n\n**対戦の操作**\n盤面の数字・文字と同じボタンで石やコマを置きます。\n相手を省略すると自由募集。ハイロー以外は募集者が **Botと対戦** も選べます。\n-# オセロの指名対戦は、指名された相手のみ参加できます。\n-# 盤面の手番は3分 · じゃんけん・ハイローの選択は60秒\n-# Bot対戦は基礎値で精算（6マス: 80＋石差 / じゃんけん勝利+25 など）\n-# チャンネル停止中も leave で対戦終了を確認できます。`,
     economy:'**ポイントを使う**\n- `login` · **30〜150pt / 日**。連続日数と順位で加算\n- `point` · 自分の残高とランキング\n- `give @相手 金額` · 手数料15%で送金\n- `bet 金額` · 増減は賭け金の **−100%〜＋100%**\n- `gamble` · 賭け金・倍率を抽選。変動は賭け金の **−11倍〜＋9倍**\n-# Bet・ギャンブルは賭け金の固定上限なし。負けるとポイントが減ります。\n\n**毎日の受取**\nログインは **毎日0時（日本時間）** に切替。\n**今後のログボ** ボタンで予測を確認できます。\n-# ポイントはこのBot内のゲーム用です。',
     media:'**文字画像**\n- `text 文字` · 黄の縁取り / `text2 文字` · 青 / `text3 文字` · 赤の明朝体\n- `text4 文字 square` · 変形スタンプ / `text5 文字 square` · 虹色スタンプ\n-# text〜text3: コンマで改行 · squareで正方形スタンプ\n\n**画像加工・音声**\n- `watermark` ＋画像 · 端末テンプレートを合成\n- `gaming` ＋画像 · 七色に光るGIF\n- `5000 上 下` · 5000兆円風の画像\n- `voice 文字` · VOICEVOX読み上げ＋ボイチェン\n-# `voice` ＋添付音声でも変換（45秒・10MB以下）\n-# voiceは指定サーバーで利用できます。',
-    utility:'**便利機能**\n- `/imakita` · 過去30分の会話を3行で要約\n- `tenki 地名` · 3日分の天気\n- `rate 金額 通貨` · 円換算\n- `time 国コード` · 世界時計\n- `info (@相手)` · プロフィール・バッジ\n- `totusi 文字列` · 突然の死\n- `ping` · 接続状況\n\n**管理**\n- `setchannel` · 利用チャンネルの切替（管理者）\n- `sync` · スラッシュコマンドの同期（Bot所有者・管理者）\n-# tenki・time・rate のカードはボタンで都市や通貨を切替。',
+    utility:'**便利機能**\n- `/imakita (minutes: 10・30・60)` · 選んだ範囲の会話を3行で要約。カードで範囲・時間帯別詳細を切替\n- `tenki 地名` · 3日分の天気\n- `rate 金額 通貨` · 円換算\n- `time 国コード` · 世界時計\n- `info (@相手)` · プロフィール・バッジ\n- `totusi 文字列` · 突然の死\n- `ping` · 接続状況\n\n**管理**\n- `setchannel` · 利用チャンネルの切替（管理者）\n- `sync` · スラッシュコマンドの同期（Bot所有者・管理者）\n-# tenki・time・rate のカードはボタンで都市や通貨を切替。',
   };
   const categories=[['home','トップ','🏠'],['games','ゲーム','🎮'],['economy','ポイント','🪙'],['media','画像・音声','🎨'],['utility','便利・管理','🛠️']] as const;
   return card('杉山啓太Bot · 使い方',content[category]??content.home!,'info',[row(...categories.map(([key,label,icon])=>button(`help:${key}`,label,category===key?ButtonStyle.Primary:ButtonStyle.Secondary,icon,category===key))),row(button('help:all','コマンド一覧を表示',ButtonStyle.Primary,'📋'))]);
@@ -127,8 +128,9 @@ export async function utility(name:string,ctx:Context,store:Store,allowed:Set<st
   if(name==='imakita') {
     const channel=ctx.channel;if(!channel||!('messages' in channel))throw new UserError('このチャンネルでは履歴を取得できません。');
     if(!ctx.guild?.members.me?.permissionsIn(ctx.channelId).has(PermissionFlagsBits.ReadMessageHistory))throw new UserError('Botに「メッセージ履歴を読む」権限を付与してください。');
-    const summary=await conversationSummary(channel);
-    return ctx.send(summaryCard(summary,ctx.user.id,false));
+    const minutes=parseSummaryMinutes(ctx.slash?.options.getInteger('minutes')??ctx.args[0]??30);
+    const summary=await conversationSummary(channel,false,minutes);
+    return ctx.send(summaryCard(summary,ctx.user.id));
   }
   throw new UserError('コマンドが見つかりません。');
 }
@@ -137,15 +139,15 @@ export async function handleHelp(i:ButtonInteraction){
   if(i.message.flags.has(MessageFlags.Ephemeral)){await i.deferUpdate();await i.editReply(payload);}
   else await i.reply({...payload,flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
 }
-function summaryCard(summary:string,owner:string,detailed:boolean) {
-  return card(detailed?'今北産業 · 時間帯別の詳細':'今北産業 · 過去30分',summary,'info',[row(button(`summary:${detailed?'short':'detail'}:${owner}`,detailed?'3行の要約に戻る':'さらに詳しく',ButtonStyle.Primary))],`DeepSeek · ${detailed?'各時間帯':'過去30分'}最大200件 · 2分間キャッシュ`);
-}
+const summaryUpdates=new Set<string>();
 export async function handleSummary(i:ButtonInteraction) {
-  const [,mode,owner]=i.customId.split(':');
-  if(owner!==i.user.id)throw new UserError('この要約はコマンドを実行した人専用です。/imakita を実行してください。');
-  if(mode!=='short'&&mode!=='detail')throw new UserError('要約を開き直してください。');
+  const action=summaryAction(i.customId,i.user.id);
   if(!i.inCachedGuild()||!i.channel||!('messages' in i.channel))throw new UserError('このチャンネルでは履歴を取得できません。');
   if(!i.guild.members.me?.permissionsIn(i.channelId).has(PermissionFlagsBits.ReadMessageHistory))throw new UserError('Botに「メッセージ履歴を読む」権限を付与してください。');
-  await i.deferUpdate();
-  await i.editReply(summaryCard(await conversationSummary(i.channel,mode==='detail'),owner,mode==='detail'));
+  if(summaryUpdates.has(i.message.id))throw new UserError('この要約を更新中です。表示が変わるまで少しお待ちください。');
+  summaryUpdates.add(i.message.id);
+  try {
+    await i.deferUpdate();
+    await i.editReply(summaryCard(await conversationSummary(i.channel,action.detailed,action.minutes,action.at),i.user.id));
+  } finally {summaryUpdates.delete(i.message.id);}
 }
