@@ -3,15 +3,18 @@ import {UserError} from '../errors.js';
 import {card} from './cards.js';
 import {MessageFlags,type Interaction} from 'discord.js';
 import {postErrorLog} from '../services/error-log.js';
+import {bugReportRow} from './bug-report.js';
 let publicChannels:ReadonlySet<string>=new Set();
 export function setErrorChannels(set:ReadonlySet<string>) {publicChannels=set;}
 export function isPublicChannel(channelId:string) {return publicChannels.has(channelId);}
 export function exceptionCards(error:unknown,operation:string) {
   const report=errorReport(error,operation);
+  const occurredAt=new Date();
+  const reportRows=()=>[bugReportRow(operation,report.friendly?undefined:report.id,occurredAt)];
   const unavailable=report.code==='10062';
   // Keep raw exception messages and stacks in server logs; the Discord log may be a shared channel.
-  const diagnostic=card(unavailable?'操作の受付期限切れ':'処理エラー · 調査情報',`**エラーID** · \`${report.id}\`\n**処理** · \`${report.context}\`\n**種類** · \`${report.name}\`${report.code?`\n**エラーコード** · \`${report.code}\``:''}${report.status?`\n**HTTPステータス** · \`${report.status}\``:''}\n**発生時刻** · <t:${Math.floor(Date.now()/1000)}:F>${unavailable?'\nDiscordが操作を期限切れ、または無効として扱ったため、応答できませんでした。':''}`,unavailable?'warning':'danger');
-  return {response:card(report.friendly?'操作を確認してください':'処理エラー',report.body,report.friendly?'warning':'danger'),diagnostic,unavailable};
+  const diagnostic=card(unavailable?'操作の受付期限切れ':'処理エラー · 調査情報',`**エラーID** · \`${report.id}\`\n**処理** · \`${report.context}\`\n**種類** · \`${report.name}\`${report.code?`\n**エラーコード** · \`${report.code}\``:''}${report.status?`\n**HTTPステータス** · \`${report.status}\``:''}\n**発生時刻** · <t:${Math.floor(occurredAt.getTime()/1000)}:F>${unavailable?'\nDiscordが操作を期限切れ、または無効として扱ったため、応答できませんでした。':''}`,unavailable?'warning':'danger',[bugReportRow(operation,report.id,occurredAt)]);
+  return {response:card(report.friendly?'操作を確認してください':'処理エラー',report.body,report.friendly?'warning':'danger',reportRows()),diagnostic,unavailable};
 }
 export function exceptionCard(error:unknown,operation:string) {return exceptionCards(error,operation).response;}
 export async function replyWithError(i:Interaction,error:unknown) {

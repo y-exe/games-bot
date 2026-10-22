@@ -10,7 +10,11 @@ coverage/
 !tsconfig.json
 !tsconfig.check.json
 .rvc/
-docs/
+/docs/*
+!/docs/README.md
+!/docs/guide/
+!/docs/operations/
+!/docs/development/
 scripts/
 !assets/emoji-manifest.json
 audio/

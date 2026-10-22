@@ -97,10 +97,12 @@ async function legacy(message:Message) {
   if(!settings.production&&message.guild.id!==settings.guildId)return;
   if(!allowed.has(message.channelId))return;
   let ctx:Context|undefined;
+  let operation='legacy command';
   try {
     const parsed=parseLegacy(message.content);if(!parsed)return;
+    operation=parsed.name;
     ctx=new Context(message,client,parsed.args);await execute(parsed.name,ctx);
-  }catch(e){try{const failure=exceptionCards(e,'legacy command');await ctx?.fail(failure.response,!(e instanceof UserError),failure.diagnostic);}catch{console.error('コマンドエラーの通知を送信できませんでした。');}
+  }catch(e){try{const failure=exceptionCards(e,operation);await ctx?.fail(failure.response,!(e instanceof UserError),failure.diagnostic);}catch{console.error('コマンドエラーの通知を送信できませんでした。');}
   }
 }
 let stopTax:(()=>void)|undefined;
