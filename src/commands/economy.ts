@@ -9,7 +9,7 @@ import { emoji } from '../ui/emojis.js';
 import {loginForecast,loginDay,loginReward,nextLoginTime} from '../data/login.js';
 import {rollGamble,diceDelta} from '../data/gamble.js';
 import {transferFee,formatAmount} from '../data/money.js';
-import {exceptionCard,isPublicChannel} from '../ui/errors.js';
+import {exceptionCards,isPublicChannel} from '../ui/errors.js';
 import {postErrorLog} from '../services/error-log.js';
 import {requireButtonOwner} from './button-owner.js';
 
@@ -65,6 +65,14 @@ export class Economy {
     if(!repeat||repeat.expires<=Date.now()||repeat.channelId!==i.channelId)throw new UserError('このボタンは期限切れです。自分で `bet` を実行してください。');
     requireButtonOwner(repeat.owner,i.user.id);
     return {kind,args:[repeat.amount]} as const;
+  }
+  async repeat(i:ButtonInteraction,takeCooldown:(kind:string)=>void) {
+    const repeat=this.repeatAction(i);
+    takeCooldown(repeat.kind);
+    const ctx=new Context(i,i.client,[...repeat.args]);
+    // Acknowledge before database work. If this fails, no points or confirmations are changed.
+    await ctx.prepare();
+    return this.run(repeat.kind,ctx);
   }
   async run(name:string,ctx:Context) {
     if(name==='point') {
@@ -147,8 +155,8 @@ export class Economy {
     try { result=await this.confirm(data,key!); }
     catch(e) {
       if(!(e instanceof UserError)) {
-        const detail=exceptionCard(e,`economy:${data.kind}`);
-        postErrorLog(detail as Record<string,unknown>);
+        const failure=exceptionCards(e,`economy:${data.kind}`),detail=failure.response;
+        postErrorLog(failure.diagnostic as Record<string,unknown>);
         if(isPublicChannel(i.channelId))return i.editReply(detail);
         await i.editReply(card('処理エラー','**処理を完了できませんでした。**\n詳細は本人向けの返信を確認してください。','danger'));
         return i.followUp({...detail,flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});

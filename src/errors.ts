@@ -26,6 +26,10 @@ export function errorReport(error:unknown,operation:string) {
   const stack=redact(error instanceof Error?error.stack??message:message).replaceAll('```','\u02cb\u02cb\u02cb').split('\n').slice(0,8).join('\n').slice(0,1400);
   const cause=error instanceof Error&&error.cause instanceof Error?redact(`${error.cause.name}: ${error.cause.message}`).replaceAll('`','').slice(0,250):'';
   const context=redact(operation).replaceAll('`','').slice(0,100);
-  if(!friendly)console.error(`[error:${id}] ${context}\n${stack}${cause?`\n原因: ${cause}`:''}`);
-  return {id,friendly,message,body:friendly?message:`処理を完了できませんでした。時間をおいて再試行してください。\nエラーID: \`${id}\``};
+  const metadata=error&&typeof error==='object'?error as {code?:unknown;status?:unknown}:{};
+  const code=typeof metadata.code==='number'&&Number.isInteger(metadata.code)||typeof metadata.code==='string'&&/^[\w-]{1,40}$/.test(metadata.code)?redact(String(metadata.code)):undefined;
+  const status=typeof metadata.status==='number'?metadata.status:undefined;
+  const name=error instanceof Error?redact(error.name).replaceAll('`','').slice(0,60):'UnknownError';
+  if(!friendly)console.error(`[error:${id}] ${context}${code?` · code=${code}`:''}${status?` · HTTP ${status}`:''}\n${stack}${cause?`\n原因: ${cause}`:''}`);
+  return {id,friendly,message,context,name,code,status,body:friendly?message:`処理を完了できませんでした。時間をおいて再試行してください。\nエラーID: \`${id}\``};
 }

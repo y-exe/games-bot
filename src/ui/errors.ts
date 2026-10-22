@@ -6,14 +6,21 @@ import {postErrorLog} from '../services/error-log.js';
 let publicChannels:ReadonlySet<string>=new Set();
 export function setErrorChannels(set:ReadonlySet<string>) {publicChannels=set;}
 export function isPublicChannel(channelId:string) {return publicChannels.has(channelId);}
-export function exceptionCard(error:unknown,operation:string) {
+export function exceptionCards(error:unknown,operation:string) {
   const report=errorReport(error,operation);
-  return card(report.friendly?'操作を確認してください':'処理エラー',report.body,report.friendly?'warning':'danger');
+  const unavailable=report.code==='10062';
+  // Keep raw exception messages and stacks in server logs; the Discord log may be a shared channel.
+  const diagnostic=card(unavailable?'操作の受付期限切れ':'処理エラー · 調査情報',`**エラーID** · \`${report.id}\`\n**処理** · \`${report.context}\`\n**種類** · \`${report.name}\`${report.code?`\n**エラーコード** · \`${report.code}\``:''}${report.status?`\n**HTTPステータス** · \`${report.status}\``:''}\n**発生時刻** · <t:${Math.floor(Date.now()/1000)}:F>${unavailable?'\nDiscordが操作を期限切れ、または無効として扱ったため、応答できませんでした。':''}`,unavailable?'warning':'danger');
+  return {response:card(report.friendly?'操作を確認してください':'処理エラー',report.body,report.friendly?'warning':'danger'),diagnostic,unavailable};
 }
+export function exceptionCard(error:unknown,operation:string) {return exceptionCards(error,operation).response;}
 export async function replyWithError(i:Interaction,error:unknown) {
-  const payload=exceptionCard(error,i.isChatInputCommand()?`/${i.commandName}`:'customId' in i?i.customId:'interaction');
-  if(!(error instanceof UserError))postErrorLog(payload);
+  const failure=exceptionCards(error,i.isChatInputCommand()?`/${i.commandName}`:'customId' in i?i.customId:'interaction'),payload=failure.response;
+  if(!(error instanceof UserError))postErrorLog(failure.diagnostic);
+  // Discord invalidates the token on a missed initial-response deadline. A second reply also fails.
+  if(failure.unavailable)return;
   if(!i.isRepliable())return;
+  if(i.deferred&&i.ephemeral)return i.editReply(payload);
   if(i.isChatInputCommand()&&i.deferred) {
     if(i.ephemeral||error instanceof UserError)return i.editReply(payload);
     if(isPublicChannel(i.channelId))return i.editReply(payload);

@@ -3,7 +3,7 @@ import { Context } from './context.js';
 import { card, button, row } from '../ui/cards.js';
 import { emoji } from '../ui/emojis.js';
 import { UserError } from '../errors.js';
-import { exceptionCard, isPublicChannel } from '../ui/errors.js';
+import { exceptionCards } from '../ui/errors.js';
 import { postErrorLog } from '../services/error-log.js';
 
 interface PromptField {
@@ -137,9 +137,9 @@ export async function handlePromptSubmit(i:ModalSubmitInteraction,deps:{client:C
   const ctx=new Context(i,deps.client,promptArgs(name,i));
   try {await deps.execute(name,ctx);}
   catch(e) {
-    const detail=exceptionCard(e,`フォーム:${name}`);
-    if(!(e instanceof UserError))postErrorLog(detail as Record<string,unknown>);
-    try {await ctx.fail(detail,!(e instanceof UserError)&&!isPublicChannel(i.channelId??''));}
+    const failure=exceptionCards(e,`フォーム:${name}`);
+    if(!(e instanceof UserError))postErrorLog(failure.diagnostic as Record<string,unknown>);
+    try {await ctx.fail(failure.response);}
     catch {console.error('フォームのエラー通知を送信できませんでした。');}
   }
 }

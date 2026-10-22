@@ -16,7 +16,7 @@ import { MediaWorker } from './services/media.js';
 import { taxScheduler } from './services/tax.js';
 import {CommandCooldowns,channelAllowsCommand,channelAllowsComponent,expiredInteraction,expiringPrefixes} from './commands/policy.js';
 import {handleAutocomplete} from './commands/autocomplete.js';
-import {exceptionCard,replyWithError,setErrorChannels} from './ui/errors.js';
+import {exceptionCards,replyWithError,setErrorChannels} from './ui/errors.js';
 import { UserError, redact, errorReport } from './errors.js';
 import { authorizeChannel } from './commands/delivery.js';
 import { promptSpecs, promptCard, needsPrompt, buildModal, handlePromptSubmit, openPrompt } from './commands/prompts.js';
@@ -64,6 +64,7 @@ async function interaction(i:Interaction) {
     else if(i.isButton()||i.isStringSelectMenu()) {
       if(!channelAllowsComponent(i.customId,i.channelId,allowed))throw new UserError('このチャンネルではBot利用が**停止されています。**\n管理者が `setchannel` で再開できます。');
       if(expiredInteraction(i.customId,Date.now()-(i.message.editedTimestamp??i.message.createdTimestamp))) {
+        await i.deferReply({flags:MessageFlags.Ephemeral});
         const selective=(id:string)=>expiringPrefixes.some(prefix=>id.startsWith(prefix));
         await i.client.rest.patch(Routes.channelMessage(i.channelId!,i.message.id),{body:{components:disableRawButtons(i.message.components,selective),flags:MessageFlags.IsComponentsV2}}).catch(()=>{});
         const disabledAt=getDisabledAt(i.message.id)??(i.message.editedTimestamp??i.message.createdTimestamp)+buttonExpiryMs();
@@ -80,9 +81,7 @@ async function interaction(i:Interaction) {
       else if(i.isButton()&&i.customId.startsWith('summary:'))await handleSummary(i);
       else if(i.isButton()&&i.customId.startsWith('editor:'))await editor.handle(i);
       else if(i.isButton()&&i.customId.startsWith('again:')) {
-        const repeat=economy.repeatAction(i);
-        cooldowns.take(i.user.id,repeat.kind);
-        await economy.run(repeat.kind,new Context(i,client,[...repeat.args]));
+        await economy.repeat(i,kind=>cooldowns.take(i.user.id,kind));
       }
       else if(i.isButton()&&i.customId.startsWith('prompt:'))await openPrompt(i);
       else throw new UserError('この操作は期限切れです。コマンドを開き直してください。');
@@ -101,7 +100,7 @@ async function legacy(message:Message) {
   try {
     const parsed=parseLegacy(message.content);if(!parsed)return;
     ctx=new Context(message,client,parsed.args);await execute(parsed.name,ctx);
-  }catch(e){try{await ctx?.fail(exceptionCard(e,'legacy command'),!(e instanceof UserError));}catch{console.error('コマンドエラーの通知を送信できませんでした。');}
+  }catch(e){try{const failure=exceptionCards(e,'legacy command');await ctx?.fail(failure.response,!(e instanceof UserError),failure.diagnostic);}catch{console.error('コマンドエラーの通知を送信できませんでした。');}
   }
 }
 let stopTax:(()=>void)|undefined;

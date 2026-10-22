@@ -43,6 +43,10 @@ export class Context {
       this.privateDelivery=this.privateDelivery||privateReply;
       if(!this.modal.deferred&&!this.modal.replied)await this.modal.deferReply({flags:this.privateDelivery?MessageFlags.Ephemeral:undefined});
     }
+    else if(this.componentSource) {
+      this.privateDelivery=this.privateDelivery||privateReply;
+      if(!this.componentSource.deferred&&!this.componentSource.replied)await this.componentSource.deferReply({flags:this.privateDelivery?MessageFlags.Ephemeral:undefined});
+    }
     else if(!this.slash&&!this.privateDelivery&&this.channel&&'sendTyping' in this.channel)await this.channel.sendTyping();
   }
   private deliver(message:Message) {if(!this.privateDelivery)trackExpiringButtons(message);return message;}
@@ -64,8 +68,8 @@ export class Context {
     this.response=this.privateDelivery?await this.user.send(payload):await (this.source as Message).reply(payload);return this.deliver(this.response);
   }
   async error(message:string) { return this.send(card('操作を確認してください',redact(message).replace(/。(?!\n|$)/g,'。\n'),'warning')); }
-  async fail(payload:MessageCreateOptions,privateReply=false) {
-    if(privateReply)postErrorLog(payload as Record<string,unknown>);
+  async fail(payload:MessageCreateOptions,privateReply=false,diagnostic:MessageCreateOptions=payload) {
+    if(privateReply)postErrorLog(diagnostic as Record<string,unknown>);
     return this.send(payload);
   }
 }
