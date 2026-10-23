@@ -1,7 +1,10 @@
 import {UserError} from '../errors.js';
-import { PermissionFlagsBits, UserFlags, type ButtonInteraction, MessageFlags, ButtonStyle } from 'discord.js';
+import { PermissionFlagsBits, type ButtonInteraction, MessageFlags, ButtonStyle,ButtonBuilder } from 'discord.js';
 import { card, row, button } from '../ui/cards.js';
 import { emoji } from '../ui/emojis.js';
+import {publicBadgeNames,accountAgeBadge,serverBoostBadge} from '../ui/badges.js';
+import {profileCard} from '../ui/profile.js';
+import {formatAmount} from '../data/money.js';
 import { Context } from './context.js';
 import {trackExpiringButtons} from '../ui/button-expiry.js';
 import {request, cachedFetch, weather, type Forecast } from '../services/network.js';
@@ -104,18 +107,44 @@ export async function utility(name:string,ctx:Context,store:Store,allowed:Set<st
   }
   if(name==='info') {
     const target=await ctx.target('user')??ctx.user;
-    const [profile,member]=await Promise.all([
+    const [profile,member,account]=await Promise.all([
       target.fetch(true).then(user=>({user,complete:true})).catch(()=>({user:target,complete:false})),
       ctx.guild!.members.fetch({user:target.id,force:true}).catch(()=>undefined),
+      store?.account(target.id).catch(()=>undefined),
     ]);
     const user=profile.user;
-    const badgeMap:[number,string][]=[[UserFlags.Staff,'staff'],[UserFlags.Partner,'partnerserver'],[UserFlags.Hypesquad,'events'],[UserFlags.HypeSquadOnlineHouse1,'bravery'],[UserFlags.HypeSquadOnlineHouse2,'brilliance'],[UserFlags.HypeSquadOnlineHouse3,'balance'],[UserFlags.BugHunterLevel1,'bugHunter'],[UserFlags.BugHunterLevel2,'bugHunter'],[UserFlags.PremiumEarlySupporter,'earlysupporter'],[UserFlags.VerifiedDeveloper,'earlyverifiedbot'],[UserFlags.CertifiedModerator,'moderator'],[UserFlags.ActiveDeveloper,'activedeveloper']];
-    const badges=badgeMap.filter(([flag])=>user.flags?.has(flag)).map(([,name])=>emoji(name));if(member?.premiumSince)badges.push(emoji('booster'));
+    const badges=publicBadgeNames(user.flags).map(name=>emoji(name));
+    const now=new Date(),age=accountAgeBadge(user.createdTimestamp,now),boost=!user.bot?serverBoostBadge(member?.premiumSince,now):undefined;
+    const ageDisplay=age?`${!user.bot&&age.name?`${emoji(age.name)} `:''}**${age.text}**`:undefined;
+    const boostDisplay=boost?`${emoji(boost.name)} **${boost.text}**`:undefined;
     const nitro=!user.bot&&(user.avatar?.startsWith('a_')||Boolean(user.banner));
-    if(nitro)badges.push(emoji('nitro'));
     const roleList=member?.roles.cache.filter(r=>r.id!==ctx.guild!.id).sort((a,b)=>b.position-a.position).map(r=>`<@&${r.id}>`)??[];
-    const roles=roleList.join(' ');
-    return ctx.send(card(`${member?.displayName??user.username} の情報`,`**ユーザー名** · ${user.username}\n**Bot?** · ${user.bot?'はい':'いいえ'}\n**ユーザーID** · \`${user.id}\`\n**アカウント作成** · <t:${Math.floor(user.createdTimestamp/1000)}:D>${member?.joinedTimestamp?`\n**サーバー参加** · <t:${Math.floor(member.joinedTimestamp/1000)}:R>`:''}${badges.length?`\n\n**バッジ** · ${[...new Set(badges)].join(' ')}`:''}${roles?`\n**ロール (${roleList.length})** · ${roles.slice(0,1000)}`:''}${nitro?'\n-# Nitroの表示はアバター・バナーからの推定です。':''}${!profile.complete||!member?'\n-# 一部のプロフィール情報を取得できませんでした。時間をおいて確認してください。':''}`,'info',[],undefined,undefined,member?.displayAvatarURL({size:256})??user.displayAvatarURL({size:256}),member?.displayColor||undefined));
+    const members=ctx.guild!.members.cache;
+    const completeMembers=members&&members.size===ctx.guild!.memberCount&&members.every(m=>m.joinedTimestamp!==null);
+    const joinedOrder=completeMembers?[...members.values()].sort((a,b)=>a.joinedTimestamp!-b.joinedTimestamp!||(BigInt(a.id)<BigInt(b.id)?-1:a.id===b.id?0:1)).findIndex(m=>m.id===user.id)+1:0;
+    const rank=account&&ctx.client?.user?await store.rank(user.id,ctx.client.user.id).catch(()=>undefined):undefined;
+    const summary=[
+      `**ユーザー名** · \`${user.username.replaceAll('`','´')}\` · ${user.bot?'アプリ':'ユーザー'}`,
+      `**ID** · \`${user.id}\``,
+      ...(badges.length?[`**公開バッジ** · ${[...new Set(badges)].join(' ')}`]:[]),
+    ].join('\n');
+    const sections=[[
+      `**アカウント作成** · <t:${Math.floor(user.createdTimestamp/1000)}:D>${ageDisplay?` · ${ageDisplay}`:''}`,
+      ...(user.globalName&&user.globalName!==user.username?[`**表示名** · ${user.globalName}`]:[]),
+      ...(nitro?[`**Nitro（推定）** · ${emoji('b_nitro')}`]:[]),
+    ].join('\n'),[
+      ...(member?.joinedTimestamp?[`**サーバー参加** · <t:${Math.floor(member.joinedTimestamp/1000)}:D> · <t:${Math.floor(member.joinedTimestamp/1000)}:R>`]:[]),
+      ...(joinedOrder>0?[`**参加順** · **${joinedOrder.toLocaleString()} / ${ctx.guild!.memberCount.toLocaleString()}人**`]:[]),
+      ...(boostDisplay?[`**ブースト継続** · ${boostDisplay}（このサーバー）`]:[]),
+      ...(roleList.length?[`**ロール (${roleList.length})** · ${roleList.slice(0,15).join(' ')}${roleList.length>15?` ほか${roleList.length-15}件`:''}`]:[]),
+    ].join('\n'),account?[
+      `**Bot内ポイント** · **${formatAmount(account.points)}pt**${rank?` · ${rank.toLocaleString()}位`:''}`,
+      `**連続ログイン** · ${account.consecutive}日${account.lastLogin?` · 最終 ${account.lastLogin}`:''}`,
+    ].join('\n'):''].filter(Boolean);
+    if(!profile.complete||!member)sections.push('-# 一部のプロフィール情報を取得できませんでした。時間をおいて確認してください。');
+    const links=[new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('アバターを見る').setURL(member?.displayAvatarURL({size:1024})??user.displayAvatarURL({size:1024}))];
+    const banner=user.bannerURL?.({size:1024});if(banner)links.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('バナーを見る').setURL(banner));
+    return ctx.send(profileCard(`${member?.displayName??user.globalName??user.username} の情報`,summary,sections.join('\n\n'),member?.displayAvatarURL({size:256})??user.displayAvatarURL({size:256}),[row(...links)],member?.displayColor||undefined));
   }
   if(name==='totusi') {
     return ctx.send(card('突然の死',suddenDeath(ctx.slash?.options.getString('text')??ctx.args.join(' ')),'success',[],undefined,undefined,undefined,0x95a5a6));

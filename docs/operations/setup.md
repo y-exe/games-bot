@@ -33,10 +33,11 @@ bun install --frozen-lockfile
 bun run typecheck
 bun run build
 bun run commands
-bun run emojis
 ```
 
-`commands` はDiscordの登録内容を更新します。テストサーバーへ `/help`・`/imakita` を登録し、そのBotの古いグローバルコマンドを削除します。`emojis` はテストBotに絵文字を登録し、保存先へ対応表を作ります。
+`commands` はDiscordの登録内容を更新します。テストサーバーへ `/help`・`/imakita` を登録し、そのBotの古いグローバルコマンドを削除します。
+
+絵文字は起動時に自動登録され、`DATA_DIR/emojis.json` に対応表が保存されます。登録済みの同じ素材は再利用するため、再起動しても増えません。対応表を失ってもDiscordの登録済み絵文字から復旧します。ローカル・本番とも同じ仕組みで、手動の絵文字登録は不要です。
 
 ## 最初の利用チャンネルを登録
 

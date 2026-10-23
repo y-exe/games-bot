@@ -12,8 +12,6 @@ services:
     restart: unless-stopped
     volumes:
       - games-bot-test-data:/app/state
-      - ./.local/emojis.json:/app/state/emojis.json:ro
-      - ./.local/emoji-originals:/app/state/emoji-originals:ro
 
   postgres-test:
     image: postgres:17-bookworm

@@ -37,7 +37,9 @@ bun run test:security
 - ゲーム変更：参加者・手番・古いボタン・終了後の精算を確認。
 - ポイント変更：二重実行や失敗時に残高が不正に動かないか確認。
 
-`bun run commands`・`bun run emojis` はDiscordへ書き込む処理です。表示の修正だけなら、毎回の再登録は不要です。要約や読み上げの実動確認には設定した外部APIを使います。
+`bun run commands` はコマンド登録、`bun run emojis` は手動の絵文字同期です。起動時にも絵文字の同期を行いますが、同じ素材は再利用します。要約や読み上げの実動確認には設定した外部APIを使います。
+
+絵文字の原本は `assets/emojis/svg/` と `assets/emojis/originals/` です。原本を変更した場合は `bun --no-env-file scripts/build-emojis.ts` でDiscord登録用PNGを生成します。バッジは原本の形・色を保ち、取得元とハッシュは `assets/badge-manifest.json` に記録します。
 
 ## DBを変更するとき
 

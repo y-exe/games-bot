@@ -2,241 +2,246 @@
   {
     "name": "o_A",
     "sourceId": "1380638761288859820",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_A.svg",
+    "outputFile": "png/characters/letters/o_A.png"
   },
   {
     "name": "o_B",
     "sourceId": "1380638762941419722",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_B.svg",
+    "outputFile": "png/characters/letters/o_B.png"
   },
   {
     "name": "o_C",
     "sourceId": "1380638764782850080",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_C.svg",
+    "outputFile": "png/characters/letters/o_C.png"
   },
   {
     "name": "o_D",
     "sourceId": "1380638769216225321",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_D.svg",
+    "outputFile": "png/characters/letters/o_D.png"
   },
   {
     "name": "o_E",
     "sourceId": "1380638771178897559",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_E.svg",
+    "outputFile": "png/characters/letters/o_E.png"
   },
   {
     "name": "o_F",
     "sourceId": "1380638773926301726",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_F.svg",
+    "outputFile": "png/characters/letters/o_F.png"
   },
   {
     "name": "o_G",
     "sourceId": "1380638776103010365",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_G.svg",
+    "outputFile": "png/characters/letters/o_G.png"
   },
   {
     "name": "o_H",
     "sourceId": "1380643990784966898",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_H.svg",
+    "outputFile": "png/characters/letters/o_H.png"
   },
   {
     "name": "o_N",
     "sourceId": "1380643993431314432",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_N.svg",
+    "outputFile": "png/characters/letters/o_N.png"
   },
   {
     "name": "o_M",
     "sourceId": "1380643995855622254",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_M.svg",
+    "outputFile": "png/characters/letters/o_M.png"
   },
   {
     "name": "o_L",
     "sourceId": "1380643998841966612",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_L.svg",
+    "outputFile": "png/characters/letters/o_L.png"
   },
   {
     "name": "o_K",
     "sourceId": "1380644001652281374",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_K.svg",
+    "outputFile": "png/characters/letters/o_K.png"
   },
   {
     "name": "o_J",
     "sourceId": "1380644004181577849",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_J.svg",
+    "outputFile": "png/characters/letters/o_J.png"
   },
   {
     "name": "o_I",
     "sourceId": "1380644006093918248",
-    "animated": false
-  },
-  {
-    "name": "events",
-    "sourceId": "1383251448451563560",
-    "animated": false
-  },
-  {
-    "name": "moderator",
-    "sourceId": "1383251587438215218",
-    "animated": false
-  },
-  {
-    "name": "staff",
-    "sourceId": "1383251602680578111",
-    "animated": false
-  },
-  {
-    "name": "earlysupporter",
-    "sourceId": "1383251618379727031",
-    "animated": false
-  },
-  {
-    "name": "bugHunter",
-    "sourceId": "1383251633567170683",
-    "animated": false
-  },
-  {
-    "name": "earlyverifiedbot",
-    "sourceId": "1383251648348160030",
-    "animated": false
-  },
-  {
-    "name": "partnerserver",
-    "sourceId": "1383251682070364210",
-    "animated": false
-  },
-  {
-    "name": "booster",
-    "sourceId": "1383251702144176168",
-    "animated": false
-  },
-  {
-    "name": "brilliance",
-    "sourceId": "1383251723610624174",
-    "animated": false
-  },
-  {
-    "name": "bravery",
-    "sourceId": "1383251749623693392",
-    "animated": false
-  },
-  {
-    "name": "balance",
-    "sourceId": "1383251792413851688",
-    "animated": false
-  },
-  {
-    "name": "nitro",
-    "sourceId": "1383252018532974642",
-    "animated": false
-  },
-  {
-    "name": "activedeveloper",
-    "sourceId": "1383253229189730374",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/letters/o_I.svg",
+    "outputFile": "png/characters/letters/o_I.png"
   },
   {
     "name": "o0",
     "sourceId": "1387735237173182544",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/games/othello/o0.svg",
+    "outputFile": "png/games/othello/o0.png"
   },
   {
     "name": "o1",
     "sourceId": "1387735281775411220",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/games/othello/o1.svg",
+    "outputFile": "png/games/othello/o1.png"
   },
   {
     "name": "o2",
     "sourceId": "1387735312129593445",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/games/othello/o2.svg",
+    "outputFile": "png/games/othello/o2.png"
   },
   {
     "name": "0_o",
     "sourceId": "1387735948812488734",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/numbers/0_o.svg",
+    "outputFile": "png/characters/numbers/0_o.png"
   },
   {
     "name": "1_o",
     "sourceId": "1557118193338818662",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/numbers/1_o.svg",
+    "outputFile": "png/characters/numbers/1_o.png"
   },
   {
     "name": "2_o",
     "sourceId": "1387735974582423663",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/numbers/2_o.svg",
+    "outputFile": "png/characters/numbers/2_o.png"
   },
   {
     "name": "3_o",
     "sourceId": "1387735988629147710",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/numbers/3_o.svg",
+    "outputFile": "png/characters/numbers/3_o.png"
   },
   {
     "name": "4_o",
     "sourceId": "1387736001157398568",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/numbers/4_o.svg",
+    "outputFile": "png/characters/numbers/4_o.png"
   },
   {
     "name": "5_o",
     "sourceId": "1387736014591758367",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/numbers/5_o.svg",
+    "outputFile": "png/characters/numbers/5_o.png"
   },
   {
     "name": "6_o",
     "sourceId": "1387736028684750868",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/numbers/6_o.svg",
+    "outputFile": "png/characters/numbers/6_o.png"
   },
   {
     "name": "7_o",
     "sourceId": "1387736046099501077",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/numbers/7_o.svg",
+    "outputFile": "png/characters/numbers/7_o.png"
   },
   {
     "name": "8_o",
     "sourceId": "1387736058783072266",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/numbers/8_o.svg",
+    "outputFile": "png/characters/numbers/8_o.png"
   },
   {
     "name": "9_o",
     "sourceId": "1387736070518603776",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/characters/numbers/9_o.svg",
+    "outputFile": "png/characters/numbers/9_o.png"
   },
   {
     "name": "4_0",
     "sourceId": "1395065436114128937",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/games/connectfour/4_0.svg",
+    "outputFile": "png/games/connectfour/4_0.png"
   },
   {
     "name": "4_1",
     "sourceId": "1395065453675544586",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/games/connectfour/4_1.svg",
+    "outputFile": "png/games/connectfour/4_1.png"
   },
   {
     "name": "4_2",
     "sourceId": "1395065472491323493",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/games/connectfour/4_2.svg",
+    "outputFile": "png/games/connectfour/4_2.png"
   },
   {
     "name": "status_success",
     "sourceId": "1434921946298060932",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/status/status_success.svg",
+    "outputFile": "png/status/status_success.png"
   },
   {
     "name": "status_pending",
     "sourceId": "1434922066431316019",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/status/status_pending.svg",
+    "outputFile": "png/status/status_pending.png"
   },
   {
     "name": "status_warning",
     "sourceId": "1434922926066634873",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/status/status_warning.svg",
+    "outputFile": "png/status/status_warning.png"
   },
   {
     "name": "status_info",
     "sourceId": "1434923060179501108",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/status/status_info.svg",
+    "outputFile": "png/status/status_info.png"
   },
   {
     "name": "status_danger",
     "sourceId": "1434924002551267420",
-    "animated": false
+    "animated": false,
+    "sourceFile": "svg/status/status_danger.svg",
+    "outputFile": "png/status/status_danger.png"
   }
 ]

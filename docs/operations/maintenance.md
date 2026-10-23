@@ -4,7 +4,7 @@
 
 ## コンテナでローカル検証
 
-[初回セットアップ](setup.md)で `.env.local` と絵文字データを準備してから実行します。Composeは `.local/emojis.json` と `.local/emoji-originals` を読み取り用にマウントします。
+[初回セットアップ](setup.md)で `.env.local` を準備してから実行します。絵文字と対応表は起動時に自動で準備し、データボリュームに保存します。
 
 ```sh
 docker compose up --build
@@ -21,11 +21,19 @@ Botのデータは `games-bot-test-data` ボリュームに残ります。通常
 | --- | --- |
 | ローカル `DATA_DIR/pglite` | Botを停止してディレクトリ全体をコピー |
 | 本番PostgreSQL | DBのバックアップ・復元手順で保管 |
-| `DATA_DIR/emojis.json`・`emoji-originals` | 絵文字の対応表・元画像 |
+| `DATA_DIR/emojis.json`・`emoji-sync.json` | 絵文字の対応表・同期情報。削除しても登録済みの同じ素材から復旧 |
+| `DATA_DIR/emoji-reset.json` | 直近の絵文字整理の進行状況。毎回上書き |
 | RVCのモデル配置先 | 音声変換モデル。別途保管 |
 
 旧 `DATA_DIR/bot.sqlite` がある場合は、ローカル初回起動時にPGliteへ一度だけ取り込みます。元ファイルは残ります。詳細は [開発・テスト](../development/testing.md) を参照してください。
 トークン・DB接続先・モデルなどの機密データをGitや公開Issueへ載せないでください。
+
+## 絵文字の同期・整理
+
+絵文字はSVG・公式PNG原本から生成した128px素材を使用します。数字・英字はTwemoji、バッジは原則としてDiscord公式の素材を使用します。[バッジ一覧と出典](../guide/badges.md)も参照してください。素材の内容が変わった場合だけ新しいIDに切り替え、通常の起動では過去のカード用のIDを削除しません。
+手動で同期を確認する場合は `bun run emojis --audit-only`、同期をやり直す場合は `bun run emojis` を実行します。どちらも設定中のBotを対象にします。
+全登録を入れ直す場合はBotを停止して `bun run emojis --reset` を実行します。画像のバックアップは作りません。過去のカードの絵文字は表示できなくなります。通常の再起動では全削除しません。
+コンテナでは `DATA_DIR/emoji-reset-request.json` に `{"id":"任意の一意なID","applicationId":"対象BotのID"}` を保存して再起動すると、一度だけ全登録を入れ直します。完了後に要求ファイルは削除し、進行記録は1ファイルに上書きします。
 
 ## エラーを調べる
 

@@ -1,6 +1,7 @@
 import { Client, Events, GatewayIntentBits, MessageFlags, ActivityType, Routes, type Interaction, type Message } from 'discord.js';
 import { settings, requireToken } from './config.js';
 import { loadEmojis } from './ui/emojis.js';
+import {syncBotEmojis} from './ui/emoji-sync.js';
 import { card, disableRawButtons } from './ui/cards.js';
 import {getDisabledAt,buttonExpiryMs,startButtonExpirySweep} from './ui/button-expiry.js';
 import { Store } from './data/store.js';
@@ -119,4 +120,4 @@ const fatal=(error:unknown,operation:string)=>{errorReport(error,operation);proc
 process.on('unhandledRejection',error=>fatal(error,'unhandledRejection'));
 process.on('uncaughtException',error=>fatal(error,'uncaughtException'));
 process.on('SIGINT',()=>void stop());process.on('SIGTERM',()=>void stop());
-try{await client.login(requireToken());}catch(e){console.error(redact(e instanceof Error?e.message:'ログインに失敗しました。'));await stop();process.exitCode=1;}
+try{await syncBotEmojis(client.rest.setToken(requireToken()),settings.applicationId,settings.dataDir);await client.login(requireToken());}catch(e){console.error(redact(e instanceof Error?e.message:'起動に失敗しました。'));await stop();process.exitCode=1;}

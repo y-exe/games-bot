@@ -17,5 +17,6 @@ coverage/
 !/docs/development/
 scripts/
 !assets/emoji-manifest.json
+!assets/badge-manifest.json
 audio/
 !assets/fonts/.gitkeep
