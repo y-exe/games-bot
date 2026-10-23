@@ -12,7 +12,7 @@ import {request, cachedFetch, weather, type Forecast } from '../services/network
 import { Store } from '../data/store.js';
 import { conversationSummary,parseSummaryMinutes } from '../services/conversation.js';
 import {summaryCard,summaryAction} from '../ui/summary.js';
-import {slashCommands} from './definitions.js';
+import {commandSyncApi,syncSlashCommands} from '../services/command-sync.js';
 import {settings} from '../config.js';
 import {suddenDeath} from '../ui/sudden-death.js';
 import {toggleAllowedChannel} from '../services/channels.js';
@@ -29,8 +29,8 @@ export async function syncCommands(ctx:Context) {
     if(!member.permissions.has(PermissionFlagsBits.Administrator))throw new UserError('同期先サーバーの管理者権限が必要です。');
   }
   if(!ctx.client.application)throw new UserError('Botの接続準備ができていません。');
-  const registered=await ctx.client.application.commands.set(slashCommands.map(c=>c.toJSON()),target);
-  return ctx.send(card('コマンド同期完了',`**\`${registered.size}個\`** のスラッシュコマンド（\`/help\` · \`/imakita\`）を同期しました。\n-# 他のコマンドはチャットへの直接入力で使えます。\n-# 同期先サーバー: ${target}`,'success'));
+  const result=await syncSlashCommands(commandSyncApi(ctx.client.rest,ctx.client.application.id),settings.applicationId,target,!settings.production);
+  return ctx.send(card('コマンド同期完了',`**${result.count}個** のスラッシュコマンド（\`/help\` · \`/imakita\`）を確認しました。${result.changed?'登録内容を更新しました。':'変更はありません。'}\n-# 他のコマンドはチャットへの直接入力で使えます。\n-# 同期先サーバー: ${target}`,'success'));
 }
 export const timezones:Record<string,string>={JP:'Asia/Tokyo',US:'America/New_York',GB:'Europe/London',UK:'Europe/London',CN:'Asia/Shanghai',KR:'Asia/Seoul',TW:'Asia/Taipei',AU:'Australia/Sydney',DE:'Europe/Berlin',FR:'Europe/Paris',RU:'Europe/Moscow',BR:'America/Sao_Paulo',IN:'Asia/Kolkata',CA:'America/Toronto',SG:'Asia/Singapore'};
 export function timeHelpCard() {

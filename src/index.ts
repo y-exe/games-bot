@@ -1,4 +1,5 @@
 import {handleHelp} from './commands/help.js';
+import {syncStartupCommands} from './services/command-sync.js';
 import { Client, Events, GatewayIntentBits, MessageFlags, ActivityType, Routes, type Interaction, type Message } from 'discord.js';
 import { settings, requireToken } from './config.js';
 import { loadEmojis } from './ui/emojis.js';
@@ -121,4 +122,4 @@ const fatal=(error:unknown,operation:string)=>{errorReport(error,operation);proc
 process.on('unhandledRejection',error=>fatal(error,'unhandledRejection'));
 process.on('uncaughtException',error=>fatal(error,'uncaughtException'));
 process.on('SIGINT',()=>void stop());process.on('SIGTERM',()=>void stop());
-try{await syncBotEmojis(client.rest.setToken(requireToken()),settings.applicationId,settings.dataDir);await client.login(requireToken());}catch(e){console.error(redact(e instanceof Error?e.message:'起動に失敗しました。'));await stop();process.exitCode=1;}
+try{client.rest.setToken(requireToken());await syncStartupCommands(client.rest,settings);await syncBotEmojis(client.rest,settings.applicationId,settings.dataDir);await client.login(requireToken());}catch(e){console.error(redact(e instanceof Error?e.message:'起動に失敗しました。'));await stop();process.exitCode=1;}
