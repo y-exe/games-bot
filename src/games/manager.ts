@@ -1,3 +1,5 @@
+import {buttonLifetimeMs} from '../commands/policy.js';
+import {trackExpiringButtons} from '../ui/button-expiry.js';
 import {UserError} from '../errors.js';
 import {ButtonStyle,MessageFlags,type ButtonInteraction,type Client,type Message,type MessageCreateOptions,type StringSelectMenuInteraction} from 'discord.js';
 import {randomInt,randomUUID} from 'node:crypto';
@@ -59,7 +61,7 @@ export class Games {
   async payload(s:Session) {
     if(s.phase==='finished') {
       for(const [key,replay] of this.replays)if(replay.expires<=Date.now())this.replays.delete(key);
-      this.replays.set(s.id,{owner:s.host,kind:s.kind,size:s.size,bet:s.bet,channelId:s.channelId,expires:Date.now()+600_000,timeControl:s.timeControl??s.chessClock?.control});
+      this.replays.set(s.id,{owner:s.host,kind:s.kind,size:s.size,bet:s.bet,channelId:s.channelId,expires:Date.now()+buttonLifetimeMs,timeControl:s.timeControl??s.chessClock?.control});
     }
     return gameCard(s,this.client.user!.id,id=>this.store.balance(id));
   }
@@ -71,12 +73,12 @@ export class Games {
   }
   private async redraw(s: Session) {
     const payload=await this.payload(s);
-    try {await (await this.message(s)).edit(payload);}
+    try {const message=await (await this.message(s)).edit(payload);if(message)trackExpiringButtons(message);}
     catch(e) {
       if((e as {code?:number}).code!==10008)throw e;
       const channel=await this.client.channels.fetch(s.channelId);
       if(!channel?.isSendable())return;
-      const message=await channel.send(payload as MessageCreateOptions);
+      const message=await channel.send(payload as MessageCreateOptions);trackExpiringButtons(message);
       s.messageId=message.id;await this.save(s);
     }
   }

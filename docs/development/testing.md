@@ -32,6 +32,7 @@ bun run test:security
 
 `test:security` はセキュリティだけでなく、ゲーム・ポイント・DB・要約・画像Workerなどの回帰テストも実行します。ビルド済みWorkerを使うテストがあるため、先にビルドしてください。
 これらの自動テストではDiscordへの投稿や有料APIの呼び出しを行いません。
+ボタンの期限・無効化・再起動時の復元は `tests/button-expiry.test.mjs` で時刻を進めて検証します。
 
 ## Discord上で確認
 

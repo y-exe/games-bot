@@ -23,6 +23,7 @@ Botのデータは `games-bot-test-data` ボリュームに残ります。通常
 | 本番PostgreSQL | DBのバックアップ・復元手順で保管 |
 | `DATA_DIR/emojis.json`・`emoji-sync.json` | 絵文字の対応表・同期情報。削除しても登録済みの同じ素材から復旧 |
 | `DATA_DIR/emoji-reset.json` | 直近の絵文字整理の進行状況。毎回上書き |
+| `DATA_DIR/button-expiry.json` | 公開カードの操作期限。再起動後も無効化を継続 |
 | RVCのモデル配置先 | 音声変換モデル。別途保管 |
 
 旧 `DATA_DIR/bot.sqlite` がある場合は、ローカル初回起動時にPGliteへ一度だけ取り込みます。元ファイルは残ります。詳細は [開発・テスト](../development/testing.md) を参照してください。

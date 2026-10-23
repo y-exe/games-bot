@@ -4,6 +4,8 @@ import { ActionRowBuilder, ButtonStyle, ComponentType, MessageFlags, ModalBuilde
 import { card, button, row,legalFooter } from '../ui/cards.js';
 import { Context } from './context.js';
 import { emoji } from '../ui/emojis.js';
+import {buttonLifetimeMs} from './policy.js';
+import {trackInteractionButtons} from '../ui/button-expiry.js';
 
 interface Draft { owner:string; channelId:string; title:string; body:string; color:number; image?:string; targetId?:string; targetVersion?:number|null; expires:number; busy:boolean }
 interface PublishedEdit { id:string; title:string; channelId:string; at:number }
@@ -15,7 +17,7 @@ export class Editor {
     if(!ctx.canManage)throw new UserError('カード編集には「メッセージの管理」権限が必要です。');
     for(const [key,d] of this.drafts)if(d.expires<Date.now())this.drafts.delete(key);
     const key=randomUUID();
-    const draft:Draft={owner:ctx.user.id,channelId:ctx.channelId,title:ctx.text('title',0,'お知らせ'),body:ctx.text('body',1,'ここに本文を入力してください。'),color:0x3498db,expires:Date.now()+15*60_000,busy:false};
+    const draft:Draft={owner:ctx.user.id,channelId:ctx.channelId,title:ctx.text('title',0,'お知らせ'),body:ctx.text('body',1,'ここに本文を入力してください。'),color:0x3498db,expires:Date.now()+buttonLifetimeMs,busy:false};
     if(ctx.slash?.options.getSubcommand()==='edit') {
       const id=ctx.text('message_id');if(!/^\d{17,20}$/.test(id))throw new UserError('メッセージIDを入力してください。');
       if(!ctx.channel||!('messages' in ctx.channel))throw new UserError('このチャンネルでは編集できません。');
@@ -59,7 +61,7 @@ export class Editor {
       const image=i.fields.getTextInputValue('image').trim();if(image&&(!URL.canParse(image)||new URL(image).protocol!=='https:'))throw new UserError('画像URLは https:// から始まるURLを指定してください。');
       if(!i.fields.getTextInputValue('title').trim()||!i.fields.getTextInputValue('body').trim())throw new UserError('タイトルと本文に文字を入力してください。');
       d.title=i.fields.getTextInputValue('title').trim();d.body=i.fields.getTextInputValue('body').trim();d.color=parseInt(color.slice(1),16);d.image=image||undefined;
-      await i.deferUpdate();return i.editReply(this.preview(key!,d));
+      await i.deferUpdate();const message=await i.editReply(this.preview(key!,d));trackInteractionButtons(i,message);return message;
     }
     if(!i.isButton())return;
     await i.deferUpdate();

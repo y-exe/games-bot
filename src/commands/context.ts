@@ -1,7 +1,7 @@
 import {UserError} from '../errors.js';
-import { ComponentType, MessageFlags, PermissionFlagsBits, type Attachment, type ButtonInteraction, type ChatInputCommandInteraction, type Client, type FileUploadModalData, type GuildMember, type Message, type MessageCreateOptions, type ModalSubmitInteraction, type User } from 'discord.js';
+import { ComponentType, MessageFlags, PermissionFlagsBits, type Attachment, type AttachmentBuilder, type ButtonInteraction, type ChatInputCommandInteraction, type Client, type FileUploadModalData, type GuildMember, type Message, type MessageCreateOptions, type ModalSubmitInteraction, type User } from 'discord.js';
 import { card } from '../ui/cards.js';
-import {trackExpiringButtons} from '../ui/button-expiry.js';
+import {trackExpiringButtons,trackInteractionButtons} from '../ui/button-expiry.js';
 import {resolveGuildTarget} from './targets.js';
 import {redact} from '../errors.js';
 import {isPublicChannel} from '../ui/errors.js';
@@ -49,7 +49,11 @@ export class Context {
     }
     else if(!this.slash&&!this.privateDelivery&&this.channel&&'sendTyping' in this.channel)await this.channel.sendTyping();
   }
-  private deliver(message:Message) {if(!this.privateDelivery)trackExpiringButtons(message);return message;}
+  private deliver(message:Message) {
+    const interaction=this.slash??this.modal??this.componentSource;
+    if(interaction)trackInteractionButtons(interaction,message);else trackExpiringButtons(message);
+    return message;
+  }
   async send(payload: MessageCreateOptions): Promise<Message> {
     if(this.slash) {
       if(this.slash.deferred||this.slash.replied)return this.deliver(await this.slash.editReply({...payload,flags:MessageFlags.IsComponentsV2} as Parameters<ChatInputCommandInteraction['editReply']>[0]));
@@ -66,6 +70,12 @@ export class Context {
     }
     if(this.response)return this.deliver(await this.response.edit({...payload,attachments:[]} as Parameters<Message['edit']>[0]));
     this.response=this.privateDelivery?await this.user.send(payload):await (this.source as Message).reply(payload);return this.deliver(this.response);
+  }
+  async sendAttachments(files:AttachmentBuilder[]):Promise<Message> {
+    const payload={files,allowedMentions:{parse:[] as ('users'|'roles'|'everyone')[],repliedUser:false}};
+    const interaction=this.slash??this.modal??this.componentSource;
+    if(interaction)return interaction.followUp({...payload,flags:this.privateDelivery?MessageFlags.Ephemeral:undefined});
+    return this.privateDelivery?this.user.send(payload):(this.source as Message).reply(payload);
   }
   async error(message:string) { return this.send(card('操作を確認してください',redact(message).replace(/。(?!\n|$)/g,'。\n'),'warning')); }
   async fail(payload:MessageCreateOptions,privateReply=false,diagnostic:MessageCreateOptions=payload) {

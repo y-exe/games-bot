@@ -1,9 +1,11 @@
+import {buttonLifetimeMs} from './policy.js';
+import {trackInteractionButtons} from '../ui/button-expiry.js';
 import {UserError} from '../errors.js';
 import { randomInt, randomUUID } from 'node:crypto';
 import { ButtonStyle, MessageFlags, type ButtonInteraction,type Message } from 'discord.js';
 import { Store } from '../data/store.js';
 import { jstDate } from '../data/store.js';
-import { card, button, row,disableCardControls } from '../ui/cards.js';
+import { card, button, row } from '../ui/cards.js';
 import { Context, positiveAmount } from './context.js';
 import { emoji } from '../ui/emojis.js';
 import {loginForecast,loginDay,loginReward,nextLoginTime} from '../data/login.js';
@@ -12,6 +14,7 @@ import {transferFee,formatAmount} from '../data/money.js';
 import {exceptionCards,isPublicChannel} from '../ui/errors.js';
 import {postErrorLog} from '../services/error-log.js';
 import {requireButtonOwner} from './button-owner.js';
+import {rankingExportResponse} from '../ui/rankings.js';
 
 interface Confirm { owner:string; target?:string; amount?:bigint; kind:'give'|'gamble'; expires:number; channelId:string;message?:Message }
 function loginCard(result:Awaited<ReturnType<Store['login']>>,owner:string,now=new Date()) {
@@ -37,7 +40,7 @@ export function loginForecastCard(account:{lastLogin:string|null;consecutive:num
 export class Economy {
   private repeats=new Map<string,{owner:string;amount:string;channelId:string;expires:number}>();
   private confirms=new Map<string,Confirm>();
-  private details=new Map<string,{channelId:string;expires:number;body:string;expire?:()=>Promise<unknown>}>();
+  private details=new Map<string,{channelId:string;expires:number;body:string}>();
   private timer:NodeJS.Timeout;
   constructor(private store: Store,private botId:()=>string) {
     this.timer=setInterval(()=>void this.expire().catch(()=>console.error('ポイント確認の期限処理に失敗しました。')),5_000);
@@ -50,7 +53,7 @@ export class Economy {
       this.confirms.delete(key);
       if(data.message)await data.message.edit(card('確認の時間切れ',`${data.kind==='give'?'送金':'ギャンブル'}は実行されませんでした。\n-# ポイントは変動していません。コマンドから確認を開き直してください。`,'warning')).catch(()=>{});
     }
-    for(const [key,data] of this.details)if(data.expires<=now){this.details.delete(key);if(data.expire)await data.expire().catch(()=>{});}
+    for(const [key,data] of this.details)if(data.expires<=now)this.details.delete(key);
   }
   close() {clearInterval(this.timer);}
   repeatAction(i:Pick<ButtonInteraction,'customId'|'user'|'channelId'>) {
@@ -80,7 +83,7 @@ export class Economy {
       const account=await this.store.account(ctx.user.id);const gambleCount=account?.gambleDate===jstDate()?account.gambleCount:0;
       const gambleLine=points>0n?`**今日のギャンブル** · **${Math.max(0,5-gambleCount)} / 5回**`:'**今日のギャンブル** · **無制限（救済措置）**';
       const list=(entries:typeof ranks,medals=false)=>entries.map((p,i)=>`${medals&&i<3?['🥇 ','🥈 ','🥉 '][i]:''}**${i+1}位** <@${p.user_id}> · **${formatAmount(p.points)}pt**`).join('\n');
-      return ctx.send(card('ゲームポイントランキング',`**あなたのポイント** · **${formatAmount(points)}pt**\n**富豪ランク** · **${rank>0?`${rank}位`:'圏外'}**${poorRank>0?` · 貧乏ランク **${poorRank}位**`:''}\n${gambleLine}\n\n**🏆 富豪ランキング · Top 5**\n${list(ranks.slice(0,5),true)||'まだプレイヤーがいません。'}${poor.length?`\n\n**💸 貧乏ランキング · Top 3**\n${list(poor.slice(0,3))}`:''}`,'success',[row(button(`eco:login:${ctx.user.id}`,'ログインボーナス',ButtonStyle.Success,emoji('status_success')),button(`eco:point:${ctx.user.id}`,'富豪 Top 10',ButtonStyle.Secondary,emoji('status_info')),button(`eco:poor:${ctx.user.id}`,'貧乏 Top 10',ButtonStyle.Secondary,emoji('status_pending')),button(`eco:rankings:${ctx.user.id}`,'さらに表示',ButtonStyle.Secondary))], undefined,undefined,undefined,0xf1c40f));
+      return ctx.send(card('ゲームポイントランキング',`**あなたのポイント** · **${formatAmount(points)}pt**\n**富豪ランク** · **${rank>0?`${rank}位`:'圏外'}**${poorRank>0?` · 貧乏ランク **${poorRank}位**`:''}\n${gambleLine}\n\n**🏆 富豪ランキング · Top 5**\n${list(ranks.slice(0,5),true)||'まだプレイヤーがいません。'}${poor.length?`\n\n**💸 貧乏ランキング · Top 3**\n${list(poor.slice(0,3))}`:''}`,'success',[row(button(`eco:login:${ctx.user.id}`,'ログインボーナス',ButtonStyle.Success,emoji('status_success')),button(`eco:point:${ctx.user.id}`,'富豪 Top 10',ButtonStyle.Secondary,emoji('status_info')),button(`eco:poor:${ctx.user.id}`,'貧乏 Top 10',ButtonStyle.Secondary,emoji('status_pending')),button(`eco:rankings:${ctx.user.id}`,'さらに表示（txt）',ButtonStyle.Secondary))], undefined,undefined,undefined,0xf1c40f));
     }
     if(name==='login') {
       const now=new Date();const result=await this.store.login(ctx.user.id,this.botId(),now);
@@ -95,7 +98,7 @@ export class Economy {
         account.points+=delta;return account.points;
       });
       const repeatKey=randomUUID();
-      this.repeats.set(repeatKey,{owner:ctx.user.id,amount:String(amount),channelId:ctx.channelId,expires:Date.now()+600_000});
+      this.repeats.set(repeatKey,{owner:ctx.user.id,amount:String(amount),channelId:ctx.channelId,expires:Date.now()+buttonLifetimeMs});
       return ctx.send(card('ダイスベット結果',`${emoji(`b_${dice}`)} **${['大凶','凶','小吉','吉','中吉','大吉'][dice-1]}**\n${['賭け金を失いました。','賭け金の半分を失いました。','賭け金の半分を失いました。','ポイントは変わりません。','賭け金の半分を獲得。','賭け金と同額を獲得！'][dice-1]}\n<@${ctx.user.id}> · ベット **${formatAmount(amount)}pt**\n\n**ポイント変動** · **${delta>=0n?'+':''}${formatAmount(delta)}pt**\n**現在のポイント** · **${formatAmount(balance)}pt**`,delta>=0n?'success':'warning',[row(button(`again:bet:${repeatKey}`,'もう一度bet',ButtonStyle.Primary,emoji(`b_${dice}`)),button(`eco:point:${ctx.user.id}`,'残高・順位を見る',ButtonStyle.Secondary,emoji('status_info')))],undefined,undefined,undefined,0x9b59b6));
     }
     const key=randomUUID();const data: Confirm={owner:ctx.user.id,kind:name as 'give'|'gamble',expires:Date.now()+60_000,channelId:ctx.channelId};
@@ -118,22 +121,37 @@ export class Economy {
     const message=await ctx.send(card(name==='give'?'送金を確認':'ハイリスクギャンブル',body,'warning',[row(button(`eco:confirm:${key}`,name==='give'?'送金する':'実行する',ButtonStyle.Danger),button(`eco:cancel:${key}`,'キャンセル',ButtonStyle.Secondary),...(name==='gamble'?[button(`eco:mechanism:${key}`,'仕組み',ButtonStyle.Secondary,'⚙️')]:[]))], '確認は60秒以内'));
     data.message=message;return message;
   }
+  private async edit(i:ButtonInteraction,payload:ReturnType<typeof card>) {
+    const message=await i.editReply(payload);
+    if(message)trackInteractionButtons(i,message);
+    return message;
+  }
   async handle(i:ButtonInteraction) {
     const [,action,key]=i.customId.split(':');
-    if(action==='login'||action==='point'||action==='poor'||action==='future'||action==='rankings') {
+    if(action==='point'||action==='poor'||action==='rankings') {
+      requireButtonOwner(key,i.user.id);
+      if(i.customId.split(':').length!==3)throw new UserError('pointを実行して一覧を開き直してください。');
+      await i.deferReply({flags:MessageFlags.Ephemeral});
+      if(action==='rankings') {
+        const {rich,poor}=await this.store.rankingExport(this.botId());
+        const name=(id:string)=>i.guild?.members.cache.get(id)?.displayName??i.client?.users.cache.get(id)?.globalName??i.client?.users.cache.get(id)?.username;
+        const {summary,attachments}=rankingExportResponse(rich,poor,name);
+        await this.edit(i,summary);
+        for(const payload of attachments)await i.followUp({...payload,flags:MessageFlags.Ephemeral});
+      } else {
+        const ranks=action==='poor'?await this.store.poorRanking(this.botId()):await this.store.ranking(this.botId());
+        await this.edit(i,card(action==='poor'?'💸 貧乏ランキング · Top 10':'🏆 富豪ランキング · Top 10',ranks.map((p,n)=>`**${n+1}位** <@${p.user_id}> · **${formatAmount(p.points)}pt**`).join('\n')||'該当するプレイヤーがいません。','info',[row(button(`eco:rankings:${key}`,'さらに表示（txt）',ButtonStyle.Secondary))]));
+      }
+      return;
+    }
+    if(action==='login'||action==='future') {
       if(key!==i.user.id)return i.reply({...card('操作できません','このボタンはコマンドを実行した人専用です。','warning'),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
       await i.deferReply({flags:MessageFlags.Ephemeral});
-      if(action==='login'){const now=new Date();const r=await this.store.login(i.user.id,this.botId(),now);await i.editReply(loginCard(r,i.user.id,now));}
-      else if(action==='rankings') {
-        const rich=await this.store.ranking(this.botId());const poor=await this.store.poorRanking(this.botId());
-        const lines=(entries:typeof rich)=>entries.map((p,index)=>`**${index+1}位** <@${p.user_id}> · \`${p.points}pt\``).join('\n')||'該当するプレイヤーがいません。';
-        await i.editReply(card('ゲームポイント · 詳細ランキング',`**🏆 富豪 Top 10**\n${lines(rich)}\n\n**💸 貧乏 Top 10**\n${lines(poor)}`,'info',[],undefined,undefined,undefined,0xf1c40f));
-      }
+      if(action==='login'){const now=new Date();const r=await this.store.login(i.user.id,this.botId(),now);await this.edit(i,loginCard(r,i.user.id,now));}
       else if(action==='future') {
         const account=await this.store.account(i.user.id);const rank=await this.store.rank(i.user.id,this.botId());
-        await i.editReply(loginForecastCard(account,rank,i.user.id));
+        await this.edit(i,loginForecastCard(account,rank,i.user.id));
       }
-      else{const ranks=action==='poor'?await this.store.poorRanking(this.botId()):await this.store.ranking(this.botId());await i.editReply(card(action==='poor'?'💸 貧乏ランキング · Top 10':'🏆 富豪ランキング · Top 10',ranks.map((p,n)=>`**${n+1}位** <@${p.user_id}> · **${p.points}pt**`).join('\n')||'該当するプレイヤーがいません。'));}
       return;
     }
     if(action==='details') {
@@ -149,22 +167,20 @@ export class Economy {
     }
     if(action!=='cancel'&&action!=='confirm')throw new UserError('操作が見つかりません。');
     this.confirms.delete(key!);await i.deferUpdate();
-    if(action==='cancel')return i.editReply(card('キャンセルしました','ポイントは変動していません。'));
+    if(action==='cancel')return this.edit(i,card('キャンセルしました','ポイントは変動していません。'));
     let result;
     try { result=await this.confirm(data,key!); }
     catch(e) {
       if(!(e instanceof UserError)) {
         const failure=exceptionCards(e,`economy:${data.kind}`),detail=failure.response;
         postErrorLog(failure.diagnostic as Record<string,unknown>);
-        if(isPublicChannel(i.channelId))return i.editReply(detail);
-        await i.editReply(card('処理エラー','**処理を完了できませんでした。**\n詳細は本人向けの返信を確認してください。','danger'));
+        if(isPublicChannel(i.channelId))return this.edit(i,detail);
+        await this.edit(i,card('処理エラー','**処理を完了できませんでした。**\n詳細は本人向けの返信を確認してください。','danger'));
         return i.followUp({...detail,flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
       }
-      return i.editReply(card('実行できませんでした',`${e.message}\n\nコマンドを実行して、最新の残高から確認し直してください。`,'warning'));
+      return this.edit(i,card('実行できませんでした',`${e.message}\n\nコマンドを実行して、最新の残高から確認し直してください。`,'warning'));
     }
-    const response=await i.editReply(result);
-    const details=this.details.get(key!);
-    if(details)details.expire=()=>i.editReply(disableCardControls(result));
+    const response=await this.edit(i,result);
     return response;
   }
   private async confirm(data:Confirm,key:string) {
@@ -181,7 +197,7 @@ export class Economy {
       const {stake,multiplier,delta}=rollGamble(current);account.points+=delta;
       return {current,stake,multiplier,delta,balance:account.points,count:account.gambleCount};
     });
-    this.details.set(key,{channelId:data.channelId,expires:Date.now()+180_000,body:`**1. 賭け金の決定**\n所持ポイント: \`${formatAmount(result.current)}pt\`\nベット: **\`${formatAmount(result.stake)}pt\`**\n\n**2. 倍率の抽選**\n抽選結果: **\`${(result.multiplier/100).toFixed(2)}倍\`**\n85%で±1.51〜3.00倍 / 13%で±3.01〜5.00倍 / 2%で±5.01〜10.00倍。\n\n**3. ポイント変動**\n\`(${formatAmount(result.stake)} × ${(result.multiplier/100).toFixed(2)}) − ${formatAmount(result.stake)}\`\n> **${result.delta>=0n?'+':''}${formatAmount(result.delta)}pt** → 残高 **${formatAmount(result.balance)}pt**${result.current<=0n&&result.balance>0n?'\n🎉 **借金からの帰還！**':''}\n-# 掛け算の小数部分を0方向に切り捨ててから賭け金を引きます。`});
+    this.details.set(key,{channelId:data.channelId,expires:Date.now()+buttonLifetimeMs,body:`**1. 賭け金の決定**\n所持ポイント: \`${formatAmount(result.current)}pt\`\nベット: **\`${formatAmount(result.stake)}pt\`**\n\n**2. 倍率の抽選**\n抽選結果: **\`${(result.multiplier/100).toFixed(2)}倍\`**\n85%で±1.51〜3.00倍 / 13%で±3.01〜5.00倍 / 2%で±5.01〜10.00倍。\n\n**3. ポイント変動**\n\`(${formatAmount(result.stake)} × ${(result.multiplier/100).toFixed(2)}) − ${formatAmount(result.stake)}\`\n> **${result.delta>=0n?'+':''}${formatAmount(result.delta)}pt** → 残高 **${formatAmount(result.balance)}pt**${result.current<=0n&&result.balance>0n?'\n🎉 **借金からの帰還！**':''}\n-# 掛け算の小数部分を0方向に切り捨ててから賭け金を引きます。`});
     const outcome=result.multiplier>500?{text:'🎉 __**超大当たり！！**__',color:0xf1c40f}:result.multiplier>300?{text:'🎊 **大当たり！**',color:0x2ecc71}:result.multiplier< -500?{text:'💀 __**世紀の大失敗！！**__',color:0x640000}:result.multiplier< -300?{text:'💸 **大失敗…**',color:0xe74c3c}:result.multiplier>0?{text:'**ちょい勝ち！**',color:0x979c9f}:{text:'**ちょい負け…**',color:0x607d8b};
     return card('ハイリスクギャンブル · 結果',`<@${data.owner}> が **\`${formatAmount(result.stake)}pt\`** をベット · 結果は **\`${(result.multiplier/100).toFixed(2)}倍\`**\n> ${outcome.text}\n**ポイント変動** · **\`${result.delta>=0n?'+':''}${formatAmount(result.delta)}pt\`**\n**現在のポイント** · \`${formatAmount(result.balance)}pt\`\n-# 今日の残り: ${result.balance>0n?`${Math.max(0,5-result.count)}回`:'無制限（救済措置）'}`,result.delta>=0n?'success':'warning',[row(button(`again:gamble:${data.owner}`,'もう一度ギャンブル',ButtonStyle.Primary),button(`eco:details:${key}`,'仕組み',ButtonStyle.Secondary,'⚙️'))],undefined,undefined,undefined,outcome.color);
   }

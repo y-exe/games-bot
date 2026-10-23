@@ -1,11 +1,11 @@
 import {handleHelp} from './commands/help.js';
 import {syncStartupCommands} from './services/command-sync.js';
-import { Client, Events, GatewayIntentBits, MessageFlags, ActivityType, Routes, type Interaction, type Message } from 'discord.js';
+import { Client, Events, GatewayIntentBits, MessageFlags, ActivityType, Routes, type Interaction, type Message,type InteractionEditReplyOptions } from 'discord.js';
 import { settings, requireToken } from './config.js';
 import { loadEmojis } from './ui/emojis.js';
 import {syncBotEmojis} from './ui/emoji-sync.js';
 import { card, disableRawButtons } from './ui/cards.js';
-import {getDisabledAt,buttonExpiryMs,startButtonExpirySweep} from './ui/button-expiry.js';
+import {getDisabledAt,getButtonDeadline,buttonExpiryMs,startButtonExpirySweep,stopButtonExpirySweep} from './ui/button-expiry.js';
 import { Store } from './data/store.js';
 import { Games, type GameKind } from './games/manager.js';
 import { Economy } from './commands/economy.js';
@@ -66,11 +66,14 @@ async function interaction(i:Interaction) {
     if(i.isChatInputCommand())await execute(i.commandName,new Context(i,client));
     else if(i.isButton()||i.isStringSelectMenu()) {
       if(!channelAllowsComponent(i.customId,i.channelId,allowed))throw new UserError('このチャンネルではBot利用が**停止されています。**\n管理者が `setchannel` で再開できます。');
-      if(expiredInteraction(i.customId,Date.now()-(i.message.editedTimestamp??i.message.createdTimestamp))) {
+      const deadline=getButtonDeadline(i.message.id)??(i.message.editedTimestamp??i.message.createdTimestamp)+buttonExpiryMs(i.message.flags.has(MessageFlags.Ephemeral));
+      if(expiringPrefixes.some(prefix=>i.customId.startsWith(prefix))&&Date.now()>=deadline) {
         await i.deferReply({flags:MessageFlags.Ephemeral});
         const selective=(id:string)=>expiringPrefixes.some(prefix=>id.startsWith(prefix));
-        await i.client.rest.patch(Routes.channelMessage(i.channelId!,i.message.id),{body:{components:disableRawButtons(i.message.components,selective),flags:MessageFlags.IsComponentsV2}}).catch(()=>{});
-        const disabledAt=getDisabledAt(i.message.id)??(i.message.editedTimestamp??i.message.createdTimestamp)+buttonExpiryMs();
+        const components=disableRawButtons(i.message.components,selective);
+        if(i.message.flags.has(MessageFlags.Ephemeral))await i.webhook.editMessage(i.message.id,{components:components as InteractionEditReplyOptions['components'],flags:MessageFlags.IsComponentsV2}).catch(()=>{});
+        else await i.client.rest.patch(Routes.channelMessage(i.channelId!,i.message.id),{body:{components,flags:MessageFlags.IsComponentsV2}}).catch(()=>{});
+        const disabledAt=getDisabledAt(i.message.id)??deadline;
         throw new UserError(`このカードのボタンは <t:${Math.floor(disabledAt/1000)}:R> に無効になりました。\n-# もう一度コマンドを実行してください。`);
       }
       if(i.customId.startsWith('game:'))await games.handle(i);
@@ -112,12 +115,12 @@ let stopTax:(()=>void)|undefined;
 client.once(Events.ClientReady,async ready=>{
   if(ready.user.id!==settings.applicationId){console.error('トークンとアプリケーションIDが一致しません。');client.destroy();await store.close();process.exitCode=1;return;}
   ready.user.setActivity('/help | games-bot by yexe',{type:ActivityType.Custom});
-  await games.restore();stopTax=taxScheduler(store,()=>ready.user.id);startButtonExpirySweep(ready);console.log(`READY ${ready.user.tag} · ${settings.production?'production':'local'} · ${commandNames.size} commands · allowed channels ${allowed.size}`);
+  await games.restore();stopTax=taxScheduler(store,()=>ready.user.id);await startButtonExpirySweep(ready,allowed);console.log(`READY ${ready.user.tag} · ${settings.production?'production':'local'} · ${commandNames.size} commands · allowed channels ${allowed.size}`);
 });
 client.on(Events.InteractionCreate,i=>void interaction(i));client.on(Events.MessageCreate,m=>void legacy(m));
 client.on(Events.Error,e=>console.error(`Discord接続: ${redact(e.message)}`));
 let stopping=false;
-async function stop(){if(stopping)return;stopping=true;stopTax?.();economy.close();await games.close();await worker.close();client.destroy();await store.close();}
+async function stop(){if(stopping)return;stopping=true;stopTax?.();economy.close();await games.close();await worker.close();await stopButtonExpirySweep(client);client.destroy();await store.close();}
 const fatal=(error:unknown,operation:string)=>{errorReport(error,operation);process.exitCode=1;void stop().catch(e=>console.error(redact(e instanceof Error?e.message:'終了処理失敗')));};
 process.on('unhandledRejection',error=>fatal(error,'unhandledRejection'));
 process.on('uncaughtException',error=>fatal(error,'uncaughtException'));

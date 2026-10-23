@@ -25,7 +25,7 @@ test('betの再実行は本人・元のチャンネルのみ許可し、大き�
     assert.throws(() => economy.repeatAction({ ...interaction, user: { id: 'other' } }), /最初にコマンドを実行した人専用/);
     assert.throws(() => economy.repeatAction({ ...interaction, channelId: 'elsewhere' }), /期限切れ/);
     assert.throws(() => economy.repeatAction({ ...interaction, customId: 'again:bet:100' }), /期限切れ/);
-    await economy.expire(Date.now() + 600_001);
+    await economy.expire(Date.now() + 1_800_001);
     assert.throws(() => economy.repeatAction(interaction), /期限切れ/);
   } finally { economy.close(); }
 });

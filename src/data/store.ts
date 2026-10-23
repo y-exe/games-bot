@@ -6,6 +6,7 @@ import { Pool, types, type PoolClient } from 'pg';
 import { settings } from '../config.js';
 import {loginReward,loginDay,jstDate} from './login.js';
 import {transferFee} from './money.js';
+import {rankingLimit,type RankingEntry} from './rankings.js';
 export {jstDate} from './login.js';
 
 type RecordRow = Record<string, unknown>;
@@ -133,6 +134,13 @@ export class Store {
   }
   async ranking(botId: string, limit = 10) {
     return this.transaction(c => c.query<{user_id:string;points:string}>(`SELECT user_id,points FROM games_bot_economy WHERE user_id<>$1 ORDER BY ${this.pointOrder(true)} LIMIT $2`, [botId,limit]));
+  }
+  async rankingExport(botId:string) {
+    return this.transaction(async c=>{
+      const rich=await c.query<RankingEntry>(`SELECT user_id,points FROM games_bot_economy WHERE user_id<>$1 ORDER BY ${this.pointOrder(true)} LIMIT $2`,[botId,rankingLimit]);
+      const poor=await c.query<RankingEntry>(`SELECT user_id,points FROM games_bot_economy WHERE user_id<>$1 AND points<0 ORDER BY ${this.pointOrder(false)} LIMIT $2`,[botId,rankingLimit]);
+      return {rich,poor};
+    });
   }
   async rank(id:string,botId:string) {
     return this.transaction(c=>this.rankIn(c,id,botId));

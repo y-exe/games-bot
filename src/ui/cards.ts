@@ -41,9 +41,10 @@ export function errorCard(message: string) { return card('操作を確認して�
 type RawComponent=Record<string,unknown>&{type:number;components?:unknown[];custom_id?:string;disabled?:boolean};
 export function disableRawButtons(components:readonly unknown[],match?:(customId:string)=>boolean):RawComponent[] {
   return components.map(component=>{
-    const data=component as RawComponent;
+    const value=component as {toJSON?:()=>unknown};
+    const data=(typeof value.toJSON==='function'?value.toJSON():component) as RawComponent;
     if(Array.isArray(data.components))return {...data,components:disableRawButtons(data.components,match)};
-    if((data.type===2||data.type===3)&&typeof data.custom_id==='string')return {...data,disabled:match?match(data.custom_id):true};
+    if([2,3,5,6,7,8].includes(data.type)&&typeof data.custom_id==='string'&&(!match||match(data.custom_id)))return {...data,disabled:true};
     return data;
   });
 }

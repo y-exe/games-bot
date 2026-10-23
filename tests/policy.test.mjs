@@ -7,7 +7,7 @@ test('未設定チャンネルでも今北産業の要約と詳細を切り替�
   assert.equal(channelAllowsCommand('imakita', 'channel', allowed), true);
   for (const id of ['summary:detail:owner', 'summary:short:owner', 'summary:detail:owner:60:1792278000000', 'summary:range-short:owner:10:1792278000000']) {
     assert.equal(channelAllowsComponent(id, 'channel', allowed), true);
-    assert.equal(expiredInteraction(id, 11 * 60_000), true);
+    assert.equal(expiredInteraction(id, 31 * 60_000), true);
   }
 });
 

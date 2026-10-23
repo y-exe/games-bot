@@ -5,7 +5,7 @@ import {commands} from './definitions.js';
 import {rewards,botRewards,othelloReward,chessReward} from '../data/rewards.js';
 import {mineLevels} from '../games/minesweeper.js';
 import {requireButtonOwner} from './button-owner.js';
-import {trackExpiringButtons} from '../ui/button-expiry.js';
+import {trackInteractionButtons} from '../ui/button-expiry.js';
 
 const docsPages:Record<string,{label:string;path:string}>={
   home:{label:'Docsを開く',path:'README.md'},
@@ -59,5 +59,5 @@ export async function handleHelp(i:ButtonInteraction){
   requireButtonOwner(ownerId,i.user.id);
   await i.deferUpdate();
   const message=await i.editReply(help(category,ownerId));
-  if(!i.message.flags.has(MessageFlags.Ephemeral))trackExpiringButtons(message);
+  trackInteractionButtons(i,message);
 }

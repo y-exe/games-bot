@@ -1,5 +1,5 @@
 import {UserError} from '../errors.js';
-import { AttachmentBuilder, FileBuilder } from 'discord.js';
+import { AttachmentBuilder } from 'discord.js';
 import { Context } from './context.js';
 import { card } from '../ui/cards.js';
 import { MediaWorker } from '../services/media.js';
@@ -38,8 +38,8 @@ export async function media(name:string,ctx:Context,worker:MediaWorker,audioProc
     }
     await ctx.send(card('RVC処理中','やまかわボイチェンで変換しています…\n-# 目安: 20〜50秒。処理内容により前後します。','pending'));
     const audio=await audioProcessor(source,extension,true);const filename=`rvc_${sourceName}.${audio.extension}`;
-    const result=card('音声変換完了',`${!attachment&&text?`**読み上げ内容**\n${text}`:'添付された音声を処理しました。'}\n**音声の長さ** · ${audio.duration.toFixed(1)}秒\n-# うまくいかない場合はBGMを抜いてみてください。`,'success',[],'RVC · やまかわボイチェン');result.components[0]!.components.splice(-1,0,new FileBuilder().setURL(`attachment://${filename}`));
-    return ctx.send({...result,files:[new AttachmentBuilder(audio.bytes,{name:filename})]});
+    await ctx.send(card('音声変換完了',`${!attachment&&text?`**読み上げ内容**\n${text}`:'添付された音声を処理しました。'}\n**音声の長さ** · ${audio.duration.toFixed(1)}秒\n下の音声プレーヤーから再生できます。\n-# うまくいかない場合はBGMを抜いてみてください。`,'success',[],'RVC · やまかわボイチェン'));
+    return ctx.sendAttachments([new AttachmentBuilder(audio.bytes,{name:filename})]);
   }
   let bytes:Buffer;let template:string|undefined;let resized=false;let originalName='image';let inputText='';
   await ctx.send(card('画像生成中…',name.startsWith('text')?'テキスト画像を生成しています…':'添付画像を加工しています…','pending'));

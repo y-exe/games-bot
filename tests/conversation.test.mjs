@@ -81,7 +81,7 @@ test('範囲変更は共有キャッシュを使い、詳細切替は取得時�
   assert.throws(() => summaryAction(`summary:refresh-short:owner:60:${now}`, 'owner', now), /要約を開き直して/);
   assert.match(JSON.stringify(payload), /最新200件/);
   assert.throws(() => summaryAction(buttons[0].custom_id, 'other', now), /実行した人専用/);
-  assert.throws(() => summaryAction(buttons[0].custom_id, 'owner', now + 600_001), /期限切れ/);
+  assert.throws(() => summaryAction(buttons[0].custom_id, 'owner', now + 1_800_001), /期限切れ/);
   assert.equal(summaryAction('summary:detail:owner', 'owner', now).minutes, 30);
   const definition = slashCommands.find(command => command.name === 'imakita').toJSON();
   assert.deepEqual(definition.options[0].choices.map(choice => choice.value), [10, 30, 60]);

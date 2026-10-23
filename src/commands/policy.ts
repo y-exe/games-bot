@@ -6,9 +6,11 @@ export function channelAllowsComponent(customId:string,channelId:string,allowed:
   if(allowed.has(channelId))return true;
   return !['replay:','eco:login:','again:'].some(prefix=>customId.startsWith(prefix));
 }
-export const expiringPrefixes=['help:','time:','tenki:','rate:','summary:','again:','replay:','eco:future','eco:point','eco:poor','eco:rankings','eco:details','eco:mechanism','prompt:'];
-export function expiredInteraction(customId:string,ageMs:number,minutes=10) {
-  return expiringPrefixes.some(prefix=>customId.startsWith(prefix))&&ageMs>minutes*60_000;
+export const buttonLifetimeMs=30*60_000;
+export const privateButtonLifetimeMs=14*60_000;
+export const expiringPrefixes=['help:','time:','tenki:','rate:','summary:','again:','replay:','eco:login','eco:future','eco:point','eco:poor','eco:rankings','eco:details','eco:mechanism','prompt:','editor:'];
+export function expiredInteraction(customId:string,ageMs:number,minutes=buttonLifetimeMs/60_000) {
+  return expiringPrefixes.some(prefix=>customId.startsWith(prefix))&&ageMs>=minutes*60_000;
 }
 export class CommandCooldowns {
   private expires=new Map<string,number>();

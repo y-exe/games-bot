@@ -7,7 +7,7 @@ import {publicBadgeNames,accountAgeBadge,serverBoostBadge} from '../ui/badges.js
 import {profileCard} from '../ui/profile.js';
 import {formatAmount} from '../data/money.js';
 import { Context } from './context.js';
-import {trackExpiringButtons} from '../ui/button-expiry.js';
+import {trackInteractionButtons} from '../ui/button-expiry.js';
 import {request, cachedFetch, weather, type Forecast } from '../services/network.js';
 import { Store } from '../data/store.js';
 import { conversationSummary,parseSummaryMinutes } from '../services/conversation.js';
@@ -46,10 +46,11 @@ export function timeCard(code:string) {
 export async function handleTimeSwitch(i:ButtonInteraction) {
   const code=(i.customId.split(':')[1]??'').toUpperCase();
   const payload=timeCard(code)??card('無効な国コード',`\`${code}\` は見つかりませんでした。`,'warning',[row(button('time:help','国コード一覧を表示',ButtonStyle.Secondary,emoji('status_info')))]);
-  await i.deferUpdate();trackExpiringButtons(await i.editReply(payload));
+  await i.deferUpdate();trackInteractionButtons(i,await i.editReply(payload));
 }
 export async function handleTimeHelp(i:ButtonInteraction) {
   await i.reply({...timeHelpCard(),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
+  trackInteractionButtons(i,await i.fetchReply());
 }
 const telopEmoji=(telop:string)=>telop.includes('雪')?'❄️':telop.includes('雷')?'⛈️':telop.includes('雨')?'🌧️':telop.includes('曇')?'☁️':telop.includes('晴')?'☀️':'';
 const quickCities=['東京','大阪','札幌','福岡','那覇'];
@@ -61,7 +62,7 @@ export function weatherCard(data:Forecast) {
 }
 export async function handleTenkiSwitch(i:ButtonInteraction) {
   const city=i.customId.split(':')[1]??'';
-  await i.deferUpdate();trackExpiringButtons(await i.editReply(weatherCard(await weather(city))));
+  await i.deferUpdate();trackInteractionButtons(i,await i.editReply(weatherCard(await weather(city))));
 }
 export async function rateCard(amountInput:string|number,codeInput:string) {
   const {amount,code}=exchangeInput(amountInput,codeInput);
@@ -74,7 +75,7 @@ export async function rateCard(amountInput:string|number,codeInput:string) {
 }
 export async function handleRateSwitch(i:ButtonInteraction) {
   const [,amount,code]=i.customId.split(':');
-  await i.deferUpdate();trackExpiringButtons(await i.editReply(await rateCard(amount??'',code??'')));
+  await i.deferUpdate();trackInteractionButtons(i,await i.editReply(await rateCard(amount??'',code??'')));
 }
 export async function utility(name:string,ctx:Context,store:Store,allowed:Set<string>) {
   if(name==='help')return ctx.send(help('home',ctx.user.id));
@@ -157,6 +158,6 @@ export async function handleSummary(i:ButtonInteraction) {
   summaryUpdates.add(i.message.id);
   try {
     await i.deferUpdate();
-    await i.editReply(summaryCard(await conversationSummary(i.channel,action.detailed,action.minutes,action.at),i.user.id));
+    trackInteractionButtons(i,await i.editReply(summaryCard(await conversationSummary(i.channel,action.detailed,action.minutes,action.at),i.user.id)));
   } finally {summaryUpdates.delete(i.message.id);}
 }

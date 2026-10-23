@@ -1,3 +1,4 @@
+import {buttonLifetimeMs} from '../commands/policy.js';
 import {UserError} from '../errors.js';
 import type { TextBasedChannel } from 'discord.js';
 import { cachedFetch, deepseek } from './network.js';
@@ -40,7 +41,7 @@ export async function fetchConversationMessages(channel:TextBasedChannel,now:num
 }
 export function createConversationSummarizer(summarize:typeof deepseek=deepseek) {
   const requests:number[]=[];
-  const snapshot=(channel:TextBasedChannel,minutes:SummaryMinutes,at:number)=>cachedFetch<Snapshot>(`summary-data:${channel.id}:${minutes}:${at}`,600_000,async()=>{
+  const snapshot=(channel:TextBasedChannel,minutes:SummaryMinutes,at:number)=>cachedFetch<Snapshot>(`summary-data:${channel.id}:${minutes}:${at}`,buttonLifetimeMs,async()=>{
     const now=Date.now();
     while(requests.length&&requests[0]!<=now-60_000)requests.shift();
     if(requests.length>=5)throw new UserError(`要約のリクエストが集中しています。約${Math.ceil((requests[0]!+60_000-now)/1000)}秒後に再試行してください。`);
@@ -50,7 +51,7 @@ export function createConversationSummarizer(summarize:typeof deepseek=deepseek)
   return async (channel:TextBasedChannel,detailed=false,minutes:SummaryMinutes=30,at?:number):Promise<ConversationSummary>=>{
     minutes=parseSummaryMinutes(minutes);
     const data=at===undefined?await cachedFetch<Snapshot>(`summary-window:${channel.id}:${minutes}`,120_000,()=>snapshot(channel,minutes,Date.now())):await snapshot(channel,minutes,at);
-    return cachedFetch<ConversationSummary>(`summary-result:${channel.id}:${minutes}:${data.at}:${detailed?'detail':'short'}`,600_000,async()=>{
+    return cachedFetch<ConversationSummary>(`summary-result:${channel.id}:${minutes}:${data.at}:${detailed?'detail':'short'}`,buttonLifetimeMs,async()=>{
       const parts:string[]=[];
       const ranges:readonly (readonly [number,number])[]=detailed?summaryRanges(minutes):[[minutes,0]];
       for(const [start,end] of ranges) {

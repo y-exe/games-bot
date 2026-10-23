@@ -1,3 +1,4 @@
+import {buttonLifetimeMs} from '../commands/policy.js';
 import {ButtonStyle} from 'discord.js';
 import {card,row,button} from './cards.js';
 import {summaryMinutes,parseSummaryMinutes,type ConversationSummary} from '../services/conversation.js';
@@ -9,7 +10,7 @@ export function summaryAction(customId:string,userId:string,now=Date.now()) {
   if(prefix!=='summary'||extra.length||!['short','detail','range-short','range-detail'].includes(action??''))throw new UserError('要約を開き直してください。');
   const minutes=parseSummaryMinutes(range??30);
   const at=time===undefined?undefined:Number(time);
-  if(at!==undefined&&(!Number.isSafeInteger(at)||at>now||at<now-600_000))throw new UserError('この要約は期限切れです。もう一度 /imakita を実行してください。');
+  if(at!==undefined&&(!Number.isSafeInteger(at)||at>now||at<now-buttonLifetimeMs))throw new UserError('この要約は期限切れです。もう一度 /imakita を実行してください。');
   return {minutes,detailed:action!.endsWith('detail'),at:action!.startsWith('range-')?undefined:at};
 }
 
