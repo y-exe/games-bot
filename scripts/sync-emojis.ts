@@ -7,7 +7,15 @@ const api=emojiApi(rest,settings.applicationId);
 if(process.argv.includes('--audit-only')) {
   if(await api.applicationId()!==settings.applicationId)throw new Error('アプリケーションIDが一致しません。');
   const existing=await api.list(),assets=await loadEmojiAssets();
-  const missing=assets.filter(asset=>!existing.some(emoji=>emoji.name===emojiAssetName(asset)));
+  const {readFile}=await import('node:fs/promises');
+  const {join}=await import('node:path');
+  const {createHash}=await import('node:crypto');
+  let records:{id:string;sha256?:string}[]=[];
+  try {
+    const saved=JSON.parse(await readFile(join(settings.dataDir,'emoji-sync.json'),'utf8'));
+    if(saved.applicationId===settings.applicationId)records=saved.assets??[];
+  }catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
+  const missing=assets.filter(asset=>!existing.some(emoji=>emoji.name===emojiAssetName(asset)&&records.some(record=>record.id===emoji.id&&record.sha256===createHash('sha256').update(asset.image).digest('hex'))));
   console.log(`登録 ${existing.length} / 最新素材の未登録 ${missing.length}`);
 }else if(process.argv.includes('--reset')) {
   const {randomUUID}=await import('node:crypto');
