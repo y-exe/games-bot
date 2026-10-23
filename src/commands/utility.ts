@@ -77,7 +77,7 @@ export async function handleRateSwitch(i:ButtonInteraction) {
   await i.deferUpdate();trackExpiringButtons(await i.editReply(await rateCard(amount??'',code??'')));
 }
 export async function utility(name:string,ctx:Context,store:Store,allowed:Set<string>) {
-  if(name==='help')return ctx.send(help());
+  if(name==='help')return ctx.send(help('home',ctx.user.id));
   if(name==='sync')return syncCommands(ctx);
   if(name==='setchannel') {
     if(!ctx.admin)throw new UserError('この設定はサーバー管理者のみ変更できます。');

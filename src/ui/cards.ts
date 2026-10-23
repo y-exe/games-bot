@@ -11,7 +11,7 @@ export function button(id: string, label: string, style = ButtonStyle.Secondary,
   return b;
 }
 export const row = (...buttons: ButtonBuilder[]) => new ActionRowBuilder<ButtonBuilder>().addComponents(buttons);
-export function card(title: string, body: string, status: Status = 'info', rows: CardRow[] = [], footer?: string, image?: string, thumbnail?:string,accent?:number,options:{repeatEmojis?:boolean}={}) {
+export function card(title: string, body: string, status: Status = 'info', rows: CardRow[] = [], footer?: string, image?: string, thumbnail?:string,accent?:number,options:{repeatEmojis?:boolean;bodyRows?:CardRow[]}={}) {
   const container = new ContainerBuilder().setAccentColor(accent??colors[status]);
   const heading=`## ${emoji(`status_${status}`)} ${title}`;
   if(thumbnail) {
@@ -21,14 +21,19 @@ export function card(title: string, body: string, status: Status = 'info', rows:
   if (image) container.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(image).setDescription(title)));
   if(footer)container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${footer}`));
   const seen=new Set<string>();
-  if (rows.length) { container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small)); for (const r of rows) {
+  const addRow=(r:CardRow)=>{
     const data=r.toJSON();
     for(const control of data.components)if(control.type===2&&'emoji' in control&&control.emoji) {
       const key=control.emoji.id??control.emoji.name!;
       if(seen.has(key)&&!options.repeatEmojis)delete control.emoji;else seen.add(key);
     }
     container.addActionRowComponents(data);
-  } }
+  };
+  for(const r of options.bodyRows??[])addRow(r);
+  if(rows.length) {
+    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
+    for(const r of rows)addRow(r);
+  }
   container.addTextDisplayComponents(new TextDisplayBuilder().setContent(legalFooter));
   return { flags: MessageFlags.IsComponentsV2 as const, components: [container], allowedMentions: { parse: [] as ('users'|'roles'|'everyone')[], repliedUser: false } };
 }
