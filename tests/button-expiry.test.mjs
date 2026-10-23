@@ -82,6 +82,18 @@ test('再起動後も公開カードの期限を引き継ぎ、未追跡の古�
   } finally {await rm(dir,{recursive:true,force:true});}
 });
 
+test('古いカードの同時編集による追加制限を避けて順番に無効化する',async()=>{
+  let now=0,active=0,maxActive=0;
+  const registry=new ButtonExpiryRegistry(undefined,()=>now),message=fixture(),second=fixture('second'),client=fakeClient(message);
+  client.messages.set(second.id,second);registry.track(message);registry.track(second);
+  const patch=client.rest.patch;client.rest.patch=async(...args)=>{
+    active++;maxActive=Math.max(maxActive,active);await Promise.resolve();
+    try{return await patch(...args);}finally{active--;}
+  };
+  now=buttonExpiryMs();await registry.sweep(client);
+  assert.equal(client.edits.length,2);assert.equal(maxActive,1);
+});
+
 test('一時的な編集失敗は期限情報を捨てずに再試行する',async()=>{
   let now=0;const registry=new ButtonExpiryRegistry(undefined,()=>now),message=fixture(),client=fakeClient(message);
   registry.track(message);now=buttonExpiryMs();

@@ -119,7 +119,7 @@ export class ButtonExpiryRegistry {
     if(this.sweeping)return;
     const pending=(async()=>{
       const due=[...this.entries.values()].filter(e=>e.expires<=this.now()&&(!e.retryAt||e.retryAt<=this.now()));
-      await Promise.all(due.map(async e=>{
+      for(const e of due) {
         try {
           await this.disable(client,e);
           if(this.entries.get(e.messageId)===e)this.entries.delete(e.messageId);
@@ -128,7 +128,7 @@ export class ButtonExpiryRegistry {
           if(code===10008||code===10003)this.entries.delete(e.messageId);
           else {e.retryAt=this.now()+5_000;console.error(`ボタンの無効化を再試行します（${code??'通信エラー'}）。`);}
         }
-      }));
+      }
       if(due.length)await this.save();
     })();
     this.sweeping=pending;
