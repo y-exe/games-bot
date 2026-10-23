@@ -5,7 +5,7 @@ import {mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import sharp from 'sharp';
-import {emojiAssetName,loadEmojiAssets,syncEmojiAssets,resetEmojiAssets} from '../src/ui/emoji-sync.ts';
+import {emojiAssetName,loadEmojiAssets,loadAllEmojiAssets,syncBotEmojis,syncEmojiAssets,resetEmojiAssets} from '../src/ui/emoji-sync.ts';
 import {manifest,badgeManifest} from '../src/ui/emojis.ts';
 
 function fakeApi(initial=[]){
@@ -20,8 +20,50 @@ function fakeApi(initial=[]){
 }
 const temporary=async work=>{const dir=await mkdtemp(join(tmpdir(),'emoji-sync-'));try{await work(dir);}finally{await rm(dir,{recursive:true,force:true});}};
 
+function startupRest(api) {
+  return {
+    get:async route=>{
+      if(route==='/oauth2/applications/@me')return {id:await api.applicationId()};
+      if(route==='/applications/test-app/emojis')return {items:await api.list()};
+      throw new Error(`Unexpected GET: ${route}`);
+    },
+    post:async(route,{body})=>{
+      assert.equal(route,'/applications/test-app/emojis');
+      return api.create(body.name,Buffer.from(body.image.split(',')[1],'base64'));
+    },
+    patch:async(route,{body})=>api.rename(api.items.find(e=>route.endsWith(`/${e.id}`)),body.name),
+    delete:async route=>api.remove(api.items.find(e=>route.endsWith(`/${e.id}`))),
+  };
+}
+
+test('空のBotの初回起動で全315種類を登録し、対応表保存後の再起動ではすべて再利用する',async()=>temporary(async dir=>{
+  const assets=await loadAllEmojiAssets(),api=fakeApi(),rest=startupRest(api);
+  assert.equal(assets.length,315);assert.equal(new Set(assets.map(a=>a.name)).size,315);
+  const first=await syncBotEmojis(rest,'test-app',dir);
+  assert.equal(first.created,315);
+  assert.deepEqual(Object.keys(first.mappings).sort(),assets.map(a=>a.name).sort());
+  const saved=JSON.parse(await readFile(join(dir,'emojis.json'),'utf8'));
+  assert.deepEqual(saved,first.mappings);
+  const ids=api.items.map(e=>e.id);
+  const next=await syncBotEmojis(rest,'test-app',dir);
+  assert.equal(next.created,0);assert.equal(next.reused,315);
+  assert.deepEqual(api.items.map(e=>e.id),ids);assert.deepEqual(api.calls.removed,[]);
+}));
+
+test('素材追加後の最初の起動で青・赤・緑・チェス・マインスイーパーの不足分だけ登録する',async()=>temporary(async dir=>{
+  const assets=await loadAllEmojiAssets(),api=fakeApi();
+  const added=new Set(['b_Z','g_Z','r_Z','board_spacer','c_bk_1_c','ms_w_d']);
+  const before=await syncEmojiAssets(api,'test-app',dir,assets.filter(a=>!added.has(a.name)));
+  const first=await syncBotEmojis(startupRest(api),'test-app',dir);
+  assert.equal(first.created,added.size);assert.equal(first.reused,assets.length-added.size);
+  for(const [name,value]of Object.entries(before.mappings))assert.equal(first.mappings[name],value);
+  for(const name of added)assert.ok(first.mappings[name],name);
+  assert.equal((await syncBotEmojis(startupRest(api),'test-app',dir)).created,0);
+  assert.equal(new Set(api.items.map(e=>e.name)).size,315);assert.deepEqual(api.calls.removed,[]);
+}));
+
 test('全絵文字が128pxで、SVGまたは公式形式の原本を持ち、偽のSVGを使わない',async()=>{
-  const assets=await loadEmojiAssets();assert.equal(assets.length,119);assert.equal(badgeManifest.length,84);
+  const assets=await loadEmojiAssets();assert.equal(assets.length,131);assert.equal(badgeManifest.length,84);
   for(const asset of assets){
     const metadata=await sharp(asset.image).metadata();
     assert.equal(metadata.width,128,asset.name);assert.equal(metadata.height,128,asset.name);assert.equal(metadata.format,'png');
@@ -30,9 +72,24 @@ test('全絵文字が128pxで、SVGまたは公式形式の原本を持ち、偽
     const source=await readFile(`assets/emojis/${path}`);
     if(path.endsWith('.svg')){assert.match(source.toString(),/<svg[\s>]/);assert.doesNotMatch(source.toString(),/<image[\s>]|data:image|<script[\s>]/i);}
     else assert.equal((await sharp(source).metadata()).format,'png');
-    if(/^o_[A-N]$|^\d_o$/.test(asset.name))assert.match(source.toString(),/viewBox="0 0 36 36"/);
+    if(/^b_[A-Z0-9]$/.test(asset.name))assert.match(source.toString(),/viewBox="0 0 36 36"/);
   }
 });
+
+test('青い数字・英字をIDと画像を保ってb_へ改名し、途中失敗からも対応表を移行する',async()=>temporary(async dir=>{
+  const assets=(await loadEmojiAssets()).filter(a=>['b_A','b_3'].includes(a.name));
+  const api=fakeApi([{id:'31',name:'o_A'},{id:'32',name:'3_o'}]);
+  await writeFile(join(dir,'emoji-sync.json'),JSON.stringify({applicationId:'test-app',assets:assets.map(a=>({name:a.name==='b_A'?'o_A':'3_o',id:a.name==='b_A'?'31':'32',sha256:createHash('sha256').update(a.image).digest('hex')}))}));
+  await writeFile(join(dir,'emojis.json'),JSON.stringify({o_A:'<:o_A:31>','3_o':'<:3_o:32>'}));
+  const rename=api.rename;let fail=true;
+  api.rename=async(entry,name)=>{if(name==='b_3'&&fail){fail=false;throw new Error('Rename interrupted');}return rename(entry,name);};
+  await assert.rejects(syncEmojiAssets(api,'test-app',dir,assets),/Rename interrupted/);
+  const result=await syncEmojiAssets(api,'test-app',dir,assets);
+  assert.equal(result.created,0);assert.deepEqual(result.mappings,{b_A:'<:b_A:31>',b_3:'<:b_3:32>'});
+  assert.deepEqual(api.items.map(e=>e.id),['31','32']);assert.equal(api.calls.created,0);assert.deepEqual(api.calls.removed,[]);
+  assert.equal((await syncEmojiAssets(api,'test-app',dir,assets)).created,0);
+  assert.deepEqual(JSON.parse(await readFile(join(dir,'emojis.json'),'utf8')),result.mappings);
+}));
 
 test('盤面絵文字が従来の透明な外周余白を保つ',async()=>{
   for(const name of ['o0','o1','o2','4_0','4_1','4_2']){

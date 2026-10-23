@@ -11,7 +11,7 @@ export function button(id: string, label: string, style = ButtonStyle.Secondary,
   return b;
 }
 export const row = (...buttons: ButtonBuilder[]) => new ActionRowBuilder<ButtonBuilder>().addComponents(buttons);
-export function card(title: string, body: string, status: Status = 'info', rows: CardRow[] = [], footer?: string, image?: string, thumbnail?:string,accent?:number) {
+export function card(title: string, body: string, status: Status = 'info', rows: CardRow[] = [], footer?: string, image?: string, thumbnail?:string,accent?:number,options:{repeatEmojis?:boolean}={}) {
   const container = new ContainerBuilder().setAccentColor(accent??colors[status]);
   const heading=`## ${emoji(`status_${status}`)} ${title}`;
   if(thumbnail) {
@@ -25,7 +25,7 @@ export function card(title: string, body: string, status: Status = 'info', rows:
     const data=r.toJSON();
     for(const control of data.components)if(control.type===2&&'emoji' in control&&control.emoji) {
       const key=control.emoji.id??control.emoji.name!;
-      if(seen.has(key))delete control.emoji;else seen.add(key);
+      if(seen.has(key)&&!options.repeatEmojis)delete control.emoji;else seen.add(key);
     }
     container.addActionRowComponents(data);
   } }

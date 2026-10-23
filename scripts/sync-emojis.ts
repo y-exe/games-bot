@@ -1,12 +1,12 @@
 import {REST} from 'discord.js';
 import {settings,requireToken} from '../src/config.js';
-import {emojiApi,syncBotEmojis,resetEmojiAssets,loadEmojiAssets,emojiAssetName} from '../src/ui/emoji-sync.js';
+import {emojiApi,syncBotEmojis,resetEmojiAssets,loadAllEmojiAssets,emojiAssetName} from '../src/ui/emoji-sync.js';
 
 const rest=new REST({version:'10'}).setToken(requireToken());
 const api=emojiApi(rest,settings.applicationId);
 if(process.argv.includes('--audit-only')) {
   if(await api.applicationId()!==settings.applicationId)throw new Error('アプリケーションIDが一致しません。');
-  const existing=await api.list(),assets=await loadEmojiAssets();
+  const existing=await api.list(),assets=await loadAllEmojiAssets();
   const {readFile}=await import('node:fs/promises');
   const {join}=await import('node:path');
   const {createHash}=await import('node:crypto');
@@ -26,7 +26,7 @@ if(process.argv.includes('--audit-only')) {
     const state=JSON.parse(await readFile(join(settings.dataDir,'emoji-reset.json'),'utf8'));
     if(state.applicationId===settings.applicationId&&state.phase!=='done')id=state.id;
   }catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
-  const result=await resetEmojiAssets(api,settings.applicationId,settings.dataDir,await loadEmojiAssets(),id);
+  const result=await resetEmojiAssets(api,settings.applicationId,settings.dataDir,await loadAllEmojiAssets(),id);
   console.log(`絵文字を再登録: ${result.total}個`);
 }else {
   await syncBotEmojis(rest,settings.applicationId,settings.dataDir);

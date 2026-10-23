@@ -8,12 +8,16 @@
 | --- | --- |
 | `src/index.ts` | 起動・イベント受付・コマンド振り分け |
 | `src/commands/` | コマンド定義・入力・権限・クールダウン |
-| `src/games/` | 対戦状態・ゲームのルール |
+| `src/games/` | ゲームのルール・状態管理・操作・Botの応手 |
 | `src/data/` | ポイント・DB・旧データの取り込み |
 | `src/services/` | API・画像・音声・定期処理 |
 | `src/ui/` | Components v2のカード・絵文字・エラー表示 |
 | `tests/` | Bunで動く自動テスト |
 | `assets/` | フォント・画像素材 |
+| `scripts/` | コマンド登録・素材の生成・運用ツール |
+
+ゲームの状態と期限は `games/session.ts`、進行・保存・精算は `games/manager.ts` で管理します。チェス操作は `games/chess-actions.ts`、Botの応手は `games/bot-turn.ts`、画面は `ui/game-card.ts` と各ゲームの `*-board.ts` に分けています。
+ヘルプの本文・カテゴリ切替は `commands/help.ts` にまとめています。
 
 ## 通常の確認
 
@@ -39,7 +43,9 @@ bun run test:security
 
 `bun run commands` はコマンド登録、`bun run emojis` は手動の絵文字同期です。起動時にも絵文字の同期を行いますが、同じ素材は再利用します。要約や読み上げの実動確認には設定した外部APIを使います。
 
-絵文字の原本は `assets/emojis/svg/` と `assets/emojis/originals/` です。原本を変更した場合は `bun --no-env-file scripts/build-emojis.ts` でDiscord登録用PNGを生成します。バッジは原本の形・色を保ち、取得元とハッシュは `assets/badge-manifest.json` に記録します。
+絵文字の同期対象は `src/ui/emoji-assets.ts` に集約しています。通常素材・バッジは各マニフェスト、盤面素材は各ゲームの一覧へ追加します。初回登録・素材追加後の起動・再起動時の再利用を `tests/emoji-sync.test.mjs` で確認できます。
+
+原本と再生成コマンドは [素材のREADME](../../assets/emojis/README.md) を参照してください。作業用のプレビューは `.local/`、再利用する生成スクリプトは `scripts/` に置きます。
 
 ## DBを変更するとき
 

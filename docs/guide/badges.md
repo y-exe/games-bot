@@ -2,7 +2,7 @@
 
 [目次](../README.md)
 
-バッジ素材は全84種類です。名前はすべて `b_` で始まり、通常のゲーム絵文字と区別できます。
+バッジ素材は全84種類です。通常・イベント・継続期間などの種類を収録しています。
 
 | 種類 | 数 | 名前の例 |
 | --- | --- | --- |
@@ -18,32 +18,7 @@
 
 基本バッジにはNitroの基本表示、Bug Hunterの緑・金、HypeSquad3種、早期サポーター、旧ユーザー名、Last Meadow、旧イベントなども含みます。
 
-## 共通・イベントのバッジ
-
-| 名前 | 素材名 |
-| --- | --- |
-| Discord Staff | `b_staff` |
-| Partner | `b_partner` |
-| Moderator Programs Alumni | `b_mod_alumni` |
-| Early Verified Bot Developer | `b_early_bot_dev` |
-| Active Developer | `b_active_dev` |
-| Bug Hunter（緑・金） | `b_bug_hunter_green`・`b_bug_hunter_gold` |
-| HypeSquad Events | `b_hype_events` |
-| HypeSquad Bravery・Brilliance・Balance | `b_hype_bravery`・`b_hype_brilliance`・`b_hype_balance` |
-| Nitro・Early Supporter | `b_nitro`・`b_early_supporter` |
-| 旧ユーザー名 | `b_legacy_username` |
-| Quest・Orbs Apprentice | `b_quest`・`b_orbs_apprentice` |
-| Clown・Last Meadow | `b_clown`・`b_last_meadow` |
-
-## アプリ・ギフト・段階別のバッジ
-
-アプリ用はコマンド対応（`b_support_commands`）、AutoMod（`b_automod`）、Premium App（`b_premium_app`）の3種類です。
-
-ギフトはPatron・Champion・Luminary・Icon・Hero・Legendの6種類です。アカウント年齢、配信、ゲーム時間、ゲームの種類は各10段階、ブーストは9段階です。Nitroの色はBronze・Silver・Gold・Platinum・Diamond・Emerald・Ruby・Opalの8種類を収録しています。各段階の名前と素材は [マニフェスト](../../assets/badge-manifest.json) で確認できます。
-
-## 素材の出典
-
-Last Meadowの単体素材はアーカイブを使用しています。各ファイルのURL・形式・ハッシュは [素材一覧](../../assets/badge-manifest.json) に記録しています。
+各素材の名前・段階・取得元は [マニフェスト](../../assets/badge-manifest.json) に記録しています。Last Meadowのみアーカイブ画像を使用しています。
 
 ## infoで表示できる範囲
 

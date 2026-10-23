@@ -7,7 +7,6 @@ const entries=[...JSON.parse(await readFile('assets/emoji-manifest.json','utf8')
 for(const {name,sourceFile,outputFile} of entries) {
   const source=await readFile(join(root,sourceFile??`svg/${name}.svg`));
   if(!sourceFile?.endsWith('.png')&&(!/<svg[\s>]/.test(source.toString())||/<image[\s>]|data:image|<script[\s>]/i.test(source.toString())))throw new Error(`${name}: 純粋なSVG素材を用意してください。`);
-  // Render vectors above the target resolution, then downsample once for smooth edges.
   const png=await sharp(source,{density:768}).resize(128,128,{fit:'contain',background:'#00000000'}).png().toBuffer();
   if(png.length>256*1024)throw new Error(`${name}: Discordの256KiB制限を超えています。`);
   const output=join(root,outputFile??`${name}.png`);await mkdir(dirname(output),{recursive:true});await writeFile(output,png);

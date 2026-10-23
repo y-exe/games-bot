@@ -1,33 +1,38 @@
 # Botの絵文字素材
 
-ゲーム用35種類・バッジ84種類の計119種類です。原本は `svg/`（SVG）と `originals/`（PNG）に保存しています。起動時の同期には128×128px PNGを使います。ローカル・本番で同じ素材を登録し、素材が変わった場合だけ新しいIDへ切り替えます。
+共通47・バッジ84・チェス82・マインスイーパー29・盤面共通73の計315種類です。初回起動ですべて登録し、追加・変更後の起動で差分を同期します。登録IDは `DATA_DIR/emojis.json`、画像の更新情報は `DATA_DIR/emoji-sync.json` に保存します。
 
-## フォルダー構成
+## 配置
 
-```text
-svg/                  # SVG原本
-  characters/         # letters（英字）・numbers（数字）
-  games/              # othello・connectfour
-  status/             # 従来のPNGから輪郭を抽出したステータスSVG
-  badges/             # general・app・account_age・streaming など
-originals/
-  badges/             # バッジのPNG原本。general・app・gifting ごとに分類
-  status/             # 以前のステータス絵文字のPNG原本
-png/                 # Discord登録用PNG。原本と同じ用途・種類で分類
-```
+| 場所 | 内容 |
+| --- | --- |
+| `svg/characters/` | 青い英字・数字、緑・赤の派生、透明マス |
+| `svg/games/` | オセロ・四目並べ・マインスイーパー |
+| `svg/status/` | ステータス |
+| `svg/badges/` | SVGで配信されているバッジ |
+| `originals/` | バッジ・ステータスのPNG原本 |
+| `png/` | Discord登録用128px PNG。用途ごとに分類 |
+| `../../src/ui/chess-emojis.ts` | チェスのSVG・PNG生成 |
 
-登録名はマニフェストの `name` と同じです。画像の更新判定は `DATA_DIR/emoji-sync.json` に保存し、名前に世代やハッシュは付けません。
+名前は青 `b_3`・`b_A`、緑 `g_3`・`g_A`、赤 `r_3`・`r_A`、チェス `c_`、マインスイーパー `ms_` です。座標は1〜9、A〜Zを使用し、位置合わせには `board_spacer` を使います。
 
-バッジの継続期間・色違いは `badges/nitro/`・`badges/boost/` などにまとまっています。個々の原本と出力先はマニフェストの `sourceFile`・`outputFile` で追跡できます。
+## 素材を更新する
 
-- **英字A〜N・数字0〜9**：Twitter Twemoji v14.0.2のSVGから生成。
-- **Discordバッジ84種類**：73種は公式SVG、10種は公式PNG、Last Meadowの1種はアーカイブ画像。すべて `b_` 接頭辞を付けています。[取得元](SOURCES.md) を参照。
-- **盤面**：このプロジェクトのSVG。外周に約2〜3pxの透明な余白を設けています。
-- **ステータス5種類**：従来のPNGから輪郭を抽出したSVGです。背景の不透明度は約14%、記号は不透明です。比較用のPNG原本も `originals/status/` に保存しています。
+リポジトリのルートで実行します。
 
-Twemoji graphics: Copyright Twitter, Inc and other contributors. Licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-[元のSVG](https://github.com/twitter/twemoji/tree/v14.0.2/assets/svg) · [同梱ライセンス](LICENSE-TWEMOJI)
+| 対象 | コマンド |
+| --- | --- |
+| 共通・バッジのPNG | `bun --no-env-file scripts/build-emojis.ts` |
+| 緑・赤の文字と透明マス | `bun --no-env-file scripts/build-board-markers.ts` |
+| マインスイーパーのSVG | `bun --no-env-file scripts/generate-minesweeper-svg.mjs` |
+| マインスイーパーのPNG | `bun --no-env-file scripts/build-minesweeper-emojis.ts` |
+| 青い英字の再取得 | `bun --no-env-file scripts/fetch-character-emojis.ts` |
 
-Discordのバッジ素材はDiscordに帰属します。英字・数字はTwemojiの原本、盤面はこのプロジェクトの素材、ステータスは従来の登録画像です。
+チェスは起動時に生成します。同期対象は `src/ui/emoji-assets.ts` に集約しています。共通・バッジはマニフェスト、ゲーム素材は各ゲームの定義一覧で管理します。
 
-原本を変更した場合は `bun --no-env-file scripts/build-emojis.ts` でPNGを生成し直してください。
+## 出典
+
+- 英字・数字：Twitter Twemoji v14.0.2。[原本](https://github.com/twitter/twemoji/tree/v14.0.2/assets/svg) · [CC BY 4.0](LICENSE-TWEMOJI)
+- Discordバッジ：[取得元一覧](SOURCES.md)。素材はDiscordに帰属します。
+- マインスイーパー：[状態の一覧](svg/games/minesweeper/README.md) · [Phosphor Iconsのライセンス](svg/games/minesweeper/icons/README.md)
+- その他の盤面：このプロジェクトのSVG。ステータスは従来の登録画像をもとにしています。

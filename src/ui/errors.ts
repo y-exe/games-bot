@@ -12,7 +12,6 @@ export function exceptionCards(error:unknown,operation:string) {
   const occurredAt=new Date();
   const reportRows=()=>[bugReportRow(operation,report.friendly?undefined:report.id,occurredAt)];
   const unavailable=report.code==='10062';
-  // Keep raw exception messages and stacks in server logs; the Discord log may be a shared channel.
   const diagnostic=card(unavailable?'操作の受付期限切れ':'処理エラー · 調査情報',`**エラーID** · \`${report.id}\`\n**処理** · \`${report.context}\`\n**種類** · \`${report.name}\`${report.code?`\n**エラーコード** · \`${report.code}\``:''}${report.status?`\n**HTTPステータス** · \`${report.status}\``:''}\n**発生時刻** · <t:${Math.floor(occurredAt.getTime()/1000)}:F>${unavailable?'\nDiscordが操作を期限切れ、または無効として扱ったため、応答できませんでした。':''}`,unavailable?'warning':'danger',[bugReportRow(operation,report.id,occurredAt)]);
   return {response:card(report.friendly?'操作を確認してください':'処理エラー',report.body,report.friendly?'warning':'danger',reportRows()),diagnostic,unavailable};
 }
@@ -20,7 +19,6 @@ export function exceptionCard(error:unknown,operation:string) {return exceptionC
 export async function replyWithError(i:Interaction,error:unknown) {
   const failure=exceptionCards(error,i.isChatInputCommand()?`/${i.commandName}`:'customId' in i?i.customId:'interaction'),payload=failure.response;
   if(!(error instanceof UserError))postErrorLog(failure.diagnostic);
-  // Discord invalidates the token on a missed initial-response deadline. A second reply also fails.
   if(failure.unavailable)return;
   if(!i.isRepliable())return;
   if(i.deferred&&i.ephemeral)return i.editReply(payload);

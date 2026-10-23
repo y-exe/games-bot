@@ -4,7 +4,7 @@ import {aliases,commandNames} from './definitions.js';
 const quotes=new Map(Object.entries({'"':'"','‘':'’','‚':'‛','“':'”','„':'‟','⹂':'⹂','「':'」','『':'』','〝':'〞','﹁':'﹂','﹃':'﹄','＂':'＂','｢':'｣','«':'»','‹':'›','《':'》','〈':'〉'}));
 const quoteCharacters=new Set([...quotes.keys(),...quotes.values()]);
 const remainderCommands=new Set(['text','text2','text3','text4','text5','voice','tenki','totusi']);
-const positionalCount:Record<string,number>={point:0,login:0,gamble:0,leave:0,help:0,setchannel:0,ping:0,imakita:0,rate:2,give:2,othello:1,connectfour:1,highlow:2,janken:1,info:1,time:1,sync:1,bet:1};
+const positionalCount:Record<string,number>={point:0,login:0,gamble:0,leave:0,help:0,setchannel:0,ping:0,imakita:0,rate:2,give:2,othello:1,connectfour:1,chess:1,minesweeper:1,highlow:2,janken:1,info:1,time:1,sync:1,bet:1};
 export function quotedArguments(input:string,limit=Infinity) {
   const args:string[]=[];let i=0;
   while(i<input.length&&args.length<limit) {

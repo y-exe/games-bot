@@ -1,6 +1,10 @@
 import {UserError} from '../errors.js';
 export const rewards={janken:{win:40n,lose:-15n,draw:8n},connectfour:{win:180n,lose:-45n,draw:40n}};
 export const botRewards={janken:{win:25n,lose:-10n,draw:5n},connectfour:{win:120n,lose:-30n,draw:25n}};
+export function chessReward(plies:number,early=false,bot=false) {
+  if(plies<12)return {win:0n,lose:0n,draw:0n};
+  return bot?{win:early?120n:200n,lose:-40n,draw:30n}:{win:early?180n:300n,lose:-60n,draw:50n};
+}
 export function othelloReward(size:number,difference:number,early=false,bot=false) {
   const index=[6,8,10].indexOf(size);if(index<0)throw new UserError('盤面は6・8・10から選んでください。');
   const win=(early?(bot?[60,80,100]:[90,120,150]):(bot?[80,100,140]:[120,150,210]))[index]!;

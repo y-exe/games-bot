@@ -9,7 +9,6 @@ const operations:Record<string,string>={
   'legacy command':'チャットのコマンド',interaction:'Botの操作',
 };
 
-// Only fixed operation names leave Discord. Never copy custom IDs, arguments or exception text.
 export function reportOperation(operation:string):string {
   const name=operation.replace(/^\//,'');
   if(commandNames.has(name))return name;

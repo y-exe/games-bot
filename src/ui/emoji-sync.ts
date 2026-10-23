@@ -4,7 +4,9 @@ import {join} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {REST,Routes} from 'discord.js';
 import sharp from 'sharp';
-import {manifest,badgeAliases,setEmojiMappings} from './emojis.js';
+import {badgeAliases,setEmojiMappings} from './emojis.js';
+import {loadAllEmojiAssets} from './emoji-assets.js';
+export {loadEmojiAssets,loadAllEmojiAssets} from './emoji-assets.js';
 
 export interface AppEmoji {id:string;name:string;animated?:boolean}
 export interface EmojiAsset {name:string;image:Buffer}
@@ -33,8 +35,15 @@ export function emojiApi(rest:REST,applicationId:string):EmojiApi {
 export function emojiAssetName(asset:EmojiAsset) {
   return asset.name;
 }
-export async function loadEmojiAssets(root='assets/emojis'):Promise<EmojiAsset[]> {
-  return Promise.all(manifest.map(async entry=>({name:entry.name,image:await readFile(join(root,entry.outputFile??`${entry.name}.png`))})));
+export async function renameLegacyChessEmojis(api:EmojiApi) {
+  const entries=await api.list();
+  let renamed=0;
+  for(const entry of entries.filter(e=>/^chess4_(empty|[wb][prnbqk])_[01](?:_[smtc])?$/.test(e.name))) {
+    const name=entry.name.replace(/^chess4_/,'c_');
+    if(entries.some(e=>e.name===name))throw new Error(`チェス絵文字 ${name} が重複しています。`);
+    Object.assign(entry,await api.rename(entry,name));renamed++;
+  }
+  return renamed;
 }
 async function atomicJson(path:string,value:unknown) {
   const temp=`${path}.${randomUUID()}.tmp`;
@@ -63,8 +72,17 @@ async function validateAssets(assets:EmojiAsset[]) {
 export async function syncEmojiAssets(api:EmojiApi,applicationId:string,dataDir:string,assets:EmojiAsset[]) {
   if(await api.applicationId()!==applicationId)throw new Error('絵文字の同期先とBotのアプリケーションIDが一致しません。');
   await validateAssets(assets);
+  if(assets.some(asset=>asset.name.startsWith('c_')))await renameLegacyChessEmojis(api);
   await mkdir(dataDir,{recursive:true});
   const existing=await api.list();
+  for(const asset of assets) {
+    const label=/^b_([A-Z0-9])$/.exec(asset.name)?.[1];
+    if(!label)continue;
+    const previous=existing.find(e=>e.name===(/^\d$/.test(label)?`${label}_o`:`o_${label}`));
+    if(!previous)continue;
+    if(existing.some(e=>e.name===asset.name))throw new Error(`青い文字絵文字 ${asset.name} が重複しています。`);
+    Object.assign(previous,await api.rename(previous,asset.name));
+  }
   const statePath=join(dataDir,'emoji-sync.json');
   type RecordEntry={name:string;id:string;sha256?:string};
   const records=new Map<string,RecordEntry>();
@@ -79,7 +97,12 @@ export async function syncEmojiAssets(api:EmojiApi,applicationId:string,dataDir:
     if(saved&&typeof saved==='object'&&!Array.isArray(saved))for(const [name,value] of Object.entries(saved)){
       const id=typeof value==='string'?/^<a?:[^:>]+:(\d+)>$/.exec(value)?.[1]:undefined;
       const found=existing.find(emoji=>emoji.id===id);
-      if(!Object.hasOwn(badgeAliases,name)&&found)mappings[name]=`<${found.animated?'a':''}:${found.name}:${found.id}>`;
+      if(!Object.hasOwn(badgeAliases,name)&&found){
+        const label=/^o_([A-Z])$/.exec(name)?.[1]??/^([0-9])_o$/.exec(name)?.[1];
+        const renamedChess=name.startsWith('chess4_')&&found.name===name.replace(/^chess4_/,'c_');
+        const key=renamedChess||label&&found.name===`b_${label}`?found.name:name;
+        mappings[key]=`<${found.animated?'a':''}:${found.name}:${found.id}>`;
+      }
     }
   }catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT'&&!(error instanceof SyntaxError))throw error;}
   let created=0;
@@ -93,7 +116,6 @@ export async function syncEmojiAssets(api:EmojiApi,applicationId:string,dataDir:
       const record=records.get(candidate.id);
       if(record?.sha256===sha256||candidate.name===legacyName||candidate.name===temporaryName){found=candidate;break;}
       if(record?.sha256)continue;
-      // Recover an upload after a lost cache without assuming its image is current.
       const decode=(image:Buffer)=>sharp(image).resize(128,128).ensureAlpha().raw().toBuffer();
       if((await decode(await api.download(candidate))).equals(await decode(asset.image))){found=candidate;break;}
     }
@@ -110,7 +132,6 @@ export async function syncEmojiAssets(api:EmojiApi,applicationId:string,dataDir:
     }
     const previousRecord=records.get(found.id);
     records.set(found.id,{name,id:found.id,sha256});
-    // Persist each upload so a later failure does not create duplicates on retry.
     if(previousRecord?.name!==name||previousRecord.sha256!==sha256)await saveState();
     mappings[asset.name]=`<:${found.name}:${found.id}>`;
   }
@@ -144,7 +165,7 @@ export async function resetEmojiAssets(api:EmojiApi,applicationId:string,dataDir
 }
 
 export async function syncBotEmojis(rest:REST,applicationId:string,dataDir:string) {
-  const api=emojiApi(rest,applicationId),assets=await loadEmojiAssets();
+  const api=emojiApi(rest,applicationId),assets=await loadAllEmojiAssets();
   const requestPath=join(dataDir,'emoji-reset-request.json');
   let request:{id:string;applicationId:string}|undefined;
   try{request=JSON.parse(await readFile(requestPath,'utf8'));}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}

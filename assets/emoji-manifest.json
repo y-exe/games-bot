@@ -1,101 +1,101 @@
 [
   {
-    "name": "o_A",
+    "name": "b_A",
     "sourceId": "1380638761288859820",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_A.svg",
-    "outputFile": "png/characters/letters/o_A.png"
+    "sourceFile": "svg/characters/letters/b_A.svg",
+    "outputFile": "png/characters/letters/b_A.png"
   },
   {
-    "name": "o_B",
+    "name": "b_B",
     "sourceId": "1380638762941419722",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_B.svg",
-    "outputFile": "png/characters/letters/o_B.png"
+    "sourceFile": "svg/characters/letters/b_B.svg",
+    "outputFile": "png/characters/letters/b_B.png"
   },
   {
-    "name": "o_C",
+    "name": "b_C",
     "sourceId": "1380638764782850080",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_C.svg",
-    "outputFile": "png/characters/letters/o_C.png"
+    "sourceFile": "svg/characters/letters/b_C.svg",
+    "outputFile": "png/characters/letters/b_C.png"
   },
   {
-    "name": "o_D",
+    "name": "b_D",
     "sourceId": "1380638769216225321",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_D.svg",
-    "outputFile": "png/characters/letters/o_D.png"
+    "sourceFile": "svg/characters/letters/b_D.svg",
+    "outputFile": "png/characters/letters/b_D.png"
   },
   {
-    "name": "o_E",
+    "name": "b_E",
     "sourceId": "1380638771178897559",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_E.svg",
-    "outputFile": "png/characters/letters/o_E.png"
+    "sourceFile": "svg/characters/letters/b_E.svg",
+    "outputFile": "png/characters/letters/b_E.png"
   },
   {
-    "name": "o_F",
+    "name": "b_F",
     "sourceId": "1380638773926301726",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_F.svg",
-    "outputFile": "png/characters/letters/o_F.png"
+    "sourceFile": "svg/characters/letters/b_F.svg",
+    "outputFile": "png/characters/letters/b_F.png"
   },
   {
-    "name": "o_G",
+    "name": "b_G",
     "sourceId": "1380638776103010365",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_G.svg",
-    "outputFile": "png/characters/letters/o_G.png"
+    "sourceFile": "svg/characters/letters/b_G.svg",
+    "outputFile": "png/characters/letters/b_G.png"
   },
   {
-    "name": "o_H",
+    "name": "b_H",
     "sourceId": "1380643990784966898",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_H.svg",
-    "outputFile": "png/characters/letters/o_H.png"
+    "sourceFile": "svg/characters/letters/b_H.svg",
+    "outputFile": "png/characters/letters/b_H.png"
   },
   {
-    "name": "o_N",
+    "name": "b_N",
     "sourceId": "1380643993431314432",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_N.svg",
-    "outputFile": "png/characters/letters/o_N.png"
+    "sourceFile": "svg/characters/letters/b_N.svg",
+    "outputFile": "png/characters/letters/b_N.png"
   },
   {
-    "name": "o_M",
+    "name": "b_M",
     "sourceId": "1380643995855622254",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_M.svg",
-    "outputFile": "png/characters/letters/o_M.png"
+    "sourceFile": "svg/characters/letters/b_M.svg",
+    "outputFile": "png/characters/letters/b_M.png"
   },
   {
-    "name": "o_L",
+    "name": "b_L",
     "sourceId": "1380643998841966612",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_L.svg",
-    "outputFile": "png/characters/letters/o_L.png"
+    "sourceFile": "svg/characters/letters/b_L.svg",
+    "outputFile": "png/characters/letters/b_L.png"
   },
   {
-    "name": "o_K",
+    "name": "b_K",
     "sourceId": "1380644001652281374",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_K.svg",
-    "outputFile": "png/characters/letters/o_K.png"
+    "sourceFile": "svg/characters/letters/b_K.svg",
+    "outputFile": "png/characters/letters/b_K.png"
   },
   {
-    "name": "o_J",
+    "name": "b_J",
     "sourceId": "1380644004181577849",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_J.svg",
-    "outputFile": "png/characters/letters/o_J.png"
+    "sourceFile": "svg/characters/letters/b_J.svg",
+    "outputFile": "png/characters/letters/b_J.png"
   },
   {
-    "name": "o_I",
+    "name": "b_I",
     "sourceId": "1380644006093918248",
     "animated": false,
-    "sourceFile": "svg/characters/letters/o_I.svg",
-    "outputFile": "png/characters/letters/o_I.png"
+    "sourceFile": "svg/characters/letters/b_I.svg",
+    "outputFile": "png/characters/letters/b_I.png"
   },
   {
     "name": "o0",
@@ -119,74 +119,74 @@
     "outputFile": "png/games/othello/o2.png"
   },
   {
-    "name": "0_o",
+    "name": "b_0",
     "sourceId": "1387735948812488734",
     "animated": false,
-    "sourceFile": "svg/characters/numbers/0_o.svg",
-    "outputFile": "png/characters/numbers/0_o.png"
+    "sourceFile": "svg/characters/numbers/b_0.svg",
+    "outputFile": "png/characters/numbers/b_0.png"
   },
   {
-    "name": "1_o",
+    "name": "b_1",
     "sourceId": "1557118193338818662",
     "animated": false,
-    "sourceFile": "svg/characters/numbers/1_o.svg",
-    "outputFile": "png/characters/numbers/1_o.png"
+    "sourceFile": "svg/characters/numbers/b_1.svg",
+    "outputFile": "png/characters/numbers/b_1.png"
   },
   {
-    "name": "2_o",
+    "name": "b_2",
     "sourceId": "1387735974582423663",
     "animated": false,
-    "sourceFile": "svg/characters/numbers/2_o.svg",
-    "outputFile": "png/characters/numbers/2_o.png"
+    "sourceFile": "svg/characters/numbers/b_2.svg",
+    "outputFile": "png/characters/numbers/b_2.png"
   },
   {
-    "name": "3_o",
+    "name": "b_3",
     "sourceId": "1387735988629147710",
     "animated": false,
-    "sourceFile": "svg/characters/numbers/3_o.svg",
-    "outputFile": "png/characters/numbers/3_o.png"
+    "sourceFile": "svg/characters/numbers/b_3.svg",
+    "outputFile": "png/characters/numbers/b_3.png"
   },
   {
-    "name": "4_o",
+    "name": "b_4",
     "sourceId": "1387736001157398568",
     "animated": false,
-    "sourceFile": "svg/characters/numbers/4_o.svg",
-    "outputFile": "png/characters/numbers/4_o.png"
+    "sourceFile": "svg/characters/numbers/b_4.svg",
+    "outputFile": "png/characters/numbers/b_4.png"
   },
   {
-    "name": "5_o",
+    "name": "b_5",
     "sourceId": "1387736014591758367",
     "animated": false,
-    "sourceFile": "svg/characters/numbers/5_o.svg",
-    "outputFile": "png/characters/numbers/5_o.png"
+    "sourceFile": "svg/characters/numbers/b_5.svg",
+    "outputFile": "png/characters/numbers/b_5.png"
   },
   {
-    "name": "6_o",
+    "name": "b_6",
     "sourceId": "1387736028684750868",
     "animated": false,
-    "sourceFile": "svg/characters/numbers/6_o.svg",
-    "outputFile": "png/characters/numbers/6_o.png"
+    "sourceFile": "svg/characters/numbers/b_6.svg",
+    "outputFile": "png/characters/numbers/b_6.png"
   },
   {
-    "name": "7_o",
+    "name": "b_7",
     "sourceId": "1387736046099501077",
     "animated": false,
-    "sourceFile": "svg/characters/numbers/7_o.svg",
-    "outputFile": "png/characters/numbers/7_o.png"
+    "sourceFile": "svg/characters/numbers/b_7.svg",
+    "outputFile": "png/characters/numbers/b_7.png"
   },
   {
-    "name": "8_o",
+    "name": "b_8",
     "sourceId": "1387736058783072266",
     "animated": false,
-    "sourceFile": "svg/characters/numbers/8_o.svg",
-    "outputFile": "png/characters/numbers/8_o.png"
+    "sourceFile": "svg/characters/numbers/b_8.svg",
+    "outputFile": "png/characters/numbers/b_8.png"
   },
   {
-    "name": "9_o",
+    "name": "b_9",
     "sourceId": "1387736070518603776",
     "animated": false,
-    "sourceFile": "svg/characters/numbers/9_o.svg",
-    "outputFile": "png/characters/numbers/9_o.png"
+    "sourceFile": "svg/characters/numbers/b_9.svg",
+    "outputFile": "png/characters/numbers/b_9.png"
   },
   {
     "name": "4_0",
@@ -243,5 +243,77 @@
     "animated": false,
     "sourceFile": "svg/status/status_danger.svg",
     "outputFile": "png/status/status_danger.png"
+  },
+  {
+    "name": "b_O",
+    "animated": false,
+    "sourceFile": "svg/characters/letters/b_O.svg",
+    "outputFile": "png/characters/letters/b_O.png"
+  },
+  {
+    "name": "b_P",
+    "animated": false,
+    "sourceFile": "svg/characters/letters/b_P.svg",
+    "outputFile": "png/characters/letters/b_P.png"
+  },
+  {
+    "name": "b_Q",
+    "animated": false,
+    "sourceFile": "svg/characters/letters/b_Q.svg",
+    "outputFile": "png/characters/letters/b_Q.png"
+  },
+  {
+    "name": "b_R",
+    "animated": false,
+    "sourceFile": "svg/characters/letters/b_R.svg",
+    "outputFile": "png/characters/letters/b_R.png"
+  },
+  {
+    "name": "b_S",
+    "animated": false,
+    "sourceFile": "svg/characters/letters/b_S.svg",
+    "outputFile": "png/characters/letters/b_S.png"
+  },
+  {
+    "name": "b_T",
+    "animated": false,
+    "sourceFile": "svg/characters/letters/b_T.svg",
+    "outputFile": "png/characters/letters/b_T.png"
+  },
+  {
+    "name": "b_U",
+    "animated": false,
+    "sourceFile": "svg/characters/letters/b_U.svg",
+    "outputFile": "png/characters/letters/b_U.png"
+  },
+  {
+    "name": "b_V",
+    "animated": false,
+    "sourceFile": "svg/characters/letters/b_V.svg",
+    "outputFile": "png/characters/letters/b_V.png"
+  },
+  {
+    "name": "b_W",
+    "animated": false,
+    "sourceFile": "svg/characters/letters/b_W.svg",
+    "outputFile": "png/characters/letters/b_W.png"
+  },
+  {
+    "name": "b_X",
+    "animated": false,
+    "sourceFile": "svg/characters/letters/b_X.svg",
+    "outputFile": "png/characters/letters/b_X.png"
+  },
+  {
+    "name": "b_Y",
+    "animated": false,
+    "sourceFile": "svg/characters/letters/b_Y.svg",
+    "outputFile": "png/characters/letters/b_Y.png"
+  },
+  {
+    "name": "b_Z",
+    "animated": false,
+    "sourceFile": "svg/characters/letters/b_Z.svg",
+    "outputFile": "png/characters/letters/b_Z.png"
   }
 ]

@@ -70,7 +70,6 @@ export class Economy {
     const repeat=this.repeatAction(i);
     takeCooldown(repeat.kind);
     const ctx=new Context(i,i.client,[...repeat.args]);
-    // Acknowledge before database work. If this fails, no points or confirmations are changed.
     await ctx.prepare();
     return this.run(repeat.kind,ctx);
   }
@@ -97,7 +96,7 @@ export class Economy {
       });
       const repeatKey=randomUUID();
       this.repeats.set(repeatKey,{owner:ctx.user.id,amount:String(amount),channelId:ctx.channelId,expires:Date.now()+600_000});
-      return ctx.send(card('ダイスベット結果',`${emoji(`${dice}_o`)} **${['大凶','凶','小吉','吉','中吉','大吉'][dice-1]}**\n${['賭け金を失いました。','賭け金の半分を失いました。','賭け金の半分を失いました。','ポイントは変わりません。','賭け金の半分を獲得。','賭け金と同額を獲得！'][dice-1]}\n<@${ctx.user.id}> · ベット **${formatAmount(amount)}pt**\n\n**ポイント変動** · **${delta>=0n?'+':''}${formatAmount(delta)}pt**\n**現在のポイント** · **${formatAmount(balance)}pt**`,delta>=0n?'success':'warning',[row(button(`again:bet:${repeatKey}`,'もう一度bet',ButtonStyle.Primary,emoji(`${dice}_o`)),button(`eco:point:${ctx.user.id}`,'残高・順位を見る',ButtonStyle.Secondary,emoji('status_info')))],undefined,undefined,undefined,0x9b59b6));
+      return ctx.send(card('ダイスベット結果',`${emoji(`b_${dice}`)} **${['大凶','凶','小吉','吉','中吉','大吉'][dice-1]}**\n${['賭け金を失いました。','賭け金の半分を失いました。','賭け金の半分を失いました。','ポイントは変わりません。','賭け金の半分を獲得。','賭け金と同額を獲得！'][dice-1]}\n<@${ctx.user.id}> · ベット **${formatAmount(amount)}pt**\n\n**ポイント変動** · **${delta>=0n?'+':''}${formatAmount(delta)}pt**\n**現在のポイント** · **${formatAmount(balance)}pt**`,delta>=0n?'success':'warning',[row(button(`again:bet:${repeatKey}`,'もう一度bet',ButtonStyle.Primary,emoji(`b_${dice}`)),button(`eco:point:${ctx.user.id}`,'残高・順位を見る',ButtonStyle.Secondary,emoji('status_info')))],undefined,undefined,undefined,0x9b59b6));
     }
     const key=randomUUID();const data: Confirm={owner:ctx.user.id,kind:name as 'give'|'gamble',expires:Date.now()+60_000,channelId:ctx.channelId};
     let body='';

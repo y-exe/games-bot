@@ -1,3 +1,4 @@
+import {handleHelp} from './commands/help.js';
 import { Client, Events, GatewayIntentBits, MessageFlags, ActivityType, Routes, type Interaction, type Message } from 'discord.js';
 import { settings, requireToken } from './config.js';
 import { loadEmojis } from './ui/emojis.js';
@@ -11,7 +12,7 @@ import { Editor } from './commands/editor.js';
 import { Context, positiveAmount } from './commands/context.js';
 import { commandNames } from './commands/definitions.js';
 import {parseLegacy} from './commands/legacy.js';
-import { utility, handleHelp, handleSummary,handleTimeHelp,handleTimeSwitch,handleTenkiSwitch,handleRateSwitch } from './commands/utility.js';
+import { utility, handleSummary,handleTimeHelp,handleTimeSwitch,handleTenkiSwitch,handleRateSwitch } from './commands/utility.js';
 import { media } from './commands/media.js';
 import { MediaWorker } from './services/media.js';
 import { taxScheduler } from './services/tax.js';
@@ -29,7 +30,7 @@ const store=new Store();
 try{await store.initialize();}catch(error){const report=errorReport(error,'database startup');await store.close();throw new UserError(`データベースの初期化に失敗しました。エラーID: ${report.id}`);}
 loadEmojis();const allowed=await store.allowedChannels();setErrorChannels(allowed);
 const games=new Games(client,store);const economy=new Economy(store,()=>client.user!.id);const editor=new Editor(client);const worker=new MediaWorker();
-const gameNames=new Set(['othello','connectfour','janken','highlow']);const economyNames=new Set(['point','login','give','bet','gamble']);const mediaNames=new Set(['text','text2','text3','text4','text5','watermark','gaming','5000','voice']);
+const gameNames=new Set(['othello','connectfour','janken','highlow','chess','minesweeper']);const economyNames=new Set(['point','login','give','bet','gamble']);const mediaNames=new Set(['text','text2','text3','text4','text5','watermark','gaming','5000','voice']);
 const cooldowns=new CommandCooldowns();
 async function execute(name:string,ctx:Context) {
   if(!ctx.guild)return;
@@ -40,9 +41,9 @@ async function execute(name:string,ctx:Context) {
   if(name==='imakita')ctx.makePrivate();
   await ctx.prepare(name==='embed'||name==='leave'||name==='imakita'||name==='sync');
   if(gameNames.has(name)) {
-    const target=await ctx.target('opponent',name==='highlow'?1:0);if(target?.bot&&target.id!==client.user!.id)throw new UserError('他のBotを対戦相手に指定できません。');
+    const target=name==='minesweeper'?undefined:await ctx.target('opponent',name==='highlow'?1:0);if(target?.bot&&target.id!==client.user!.id)throw new UserError('他のBotを対戦相手に指定できません。');
     if(name==='highlow'&&target?.bot)throw new UserError('ハイローは人同士で対戦してください。Botは指名できません。');
-    return games.create(name as GameKind,ctx.user.id,ctx.channelId,p=>ctx.send(p),target?.id,ctx.slash?.options.getInteger('size')??8,name==='highlow'?positiveAmount(ctx.text('amount')):0n);
+    return games.create(name as GameKind,ctx.user.id,ctx.channelId,p=>ctx.send(p),target?.id,ctx.slash?.options.getInteger('size')??8,name==='highlow'?positiveAmount(ctx.text('amount')):0n,name==='minesweeper'?ctx.text('difficulty'):'');
   }
   if(name==='leave'){
     const message=await ctx.send(await games.leave(ctx.user.id));games.trackLeave(message.id,p=>ctx.send(p));return message;

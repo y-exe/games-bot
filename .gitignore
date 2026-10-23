@@ -15,7 +15,14 @@ coverage/
 !/docs/guide/
 !/docs/operations/
 !/docs/development/
-scripts/
+scripts/*
+!scripts/build-board-markers.ts
+!scripts/build-minesweeper-emojis.ts
+!scripts/generate-minesweeper-svg.mjs
+!scripts/fetch-character-emojis.ts
+!scripts/lib/
+scripts/lib/*
+!scripts/lib/fit-svg-icon.mjs
 !assets/emoji-manifest.json
 !assets/badge-manifest.json
 audio/

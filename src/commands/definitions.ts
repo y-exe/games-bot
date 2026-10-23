@@ -5,6 +5,8 @@ export const commands = [
   basic('help','ゲーム・画像・便利機能の使い方を開く'),
   basic('othello','オセロの対戦相手を募集する').addUserOption(o=>o.setName('opponent').setDescription('対戦相手（省略すると誰でも参加）')).addIntegerOption(o=>o.setName('size').setDescription('盤面の大きさ').addChoices({name:'6 × 6',value:6},{name:'8 × 8',value:8},{name:'10 × 10',value:10})),
   basic('connectfour','四目並べの対戦相手を募集する').addUserOption(o=>o.setName('opponent').setDescription('対戦相手')),
+  basic('chess','絵文字の盤面とボタンで遊ぶチェスの対戦相手を募集する').addUserOption(o=>o.setName('opponent').setDescription('対戦相手（このBotも指定可能・省略すると自由募集）')),
+  basic('minesweeper','行と列のボタンで遊ぶひとり用マインスイーパー').addStringOption(o=>o.setName('difficulty').setDescription('難易度（省略するとボタンで選択）').addChoices({name:'初級 · 6 × 6 / 地雷6個',value:'easy'},{name:'中級 · 8 × 8 / 地雷10個',value:'normal'},{name:'上級 · 10 × 10 / 地雷20個',value:'hard'})),
   basic('janken','手を非公開で選ぶじゃんけん対戦を募集する').addUserOption(o=>o.setName('opponent').setDescription('対戦相手')),
   basic('highlow','次のカードの大小を予想して対戦する').addStringOption(o=>o.setName('amount').setDescription('一人あたりの賭け金（ポイント）').setRequired(true).setAutocomplete(true)).addUserOption(o=>o.setName('opponent').setDescription('対戦相手')),
   basic('leave','参加中の対戦を終了する確認を開く'),
@@ -33,6 +35,7 @@ export const commands = [
 export const slashCommands = commands.filter(command=>['help','imakita'].includes(command.name));
 export const commandNames = new Set(commands.map(c=>c.name));
 export const aliases: Record<string,string> = {
+  チェス:'chess',ちぇす:'chess',マインスイーパー:'minesweeper',マインスイーパ:'minesweeper',まいんすいーぱー:'minesweeper',mines:'minesweeper',ms:'minesweeper',
   おせろ:'othello','4moku':'connectfour','4nara':'connectfour',よんもく:'connectfour','4目並べ':'connectfour',へるぷ:'help',ヘルプ:'help',weather:'tenki',テンキ:'tenki',
   cf:'connectfour',四目並べ:'connectfour',オセロ:'othello',じゃんけん:'janken',ジャンケン:'janken',hl:'highlow',ハイロー:'highlow',
   points:'point',ポイント:'point',bonus:'login',daily:'login',ログイン:'login',ログボ:'login',pay:'give',送金:'give',ギャンブル:'gamble',賭け:'bet',かけ:'bet',ベッド:'bet',べっど:'bet',

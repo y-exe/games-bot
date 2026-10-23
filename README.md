@@ -11,7 +11,7 @@
 詰めるだけ詰め込んだだけのBot!!!<br>
 <br>
 
-<img src="public/gamble.png" alt="gamble">
+<img src="assets/gamble.png" alt="gamble">
 <br>
 <sub>このBotのギャンブルに沼った人.png</sub>
 </div>
@@ -42,8 +42,6 @@
 | ポイント | ログインボーナス・ランキング・送金・Bet・ギャンブル | [ポイント](docs/guide/points.md) |
 | 画像・音声 | 文字画像・スタンプ・画像加工・読み上げ・ボイチェン | [画像・音声](docs/guide/media.md) |
 | 便利機能 | 会話要約・天気・為替・世界時計・プロフィール | [便利機能](docs/guide/utility.md) |
-
-チェス・マインスイーパーは現在ローカル検証中です。
 
 ## 導入・開発
 
