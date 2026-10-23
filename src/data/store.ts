@@ -6,7 +6,7 @@ import { Pool, types, type PoolClient } from 'pg';
 import { settings } from '../config.js';
 import {loginReward,loginDay,jstDate} from './login.js';
 import {transferFee} from './money.js';
-import {rankingLimit,type RankingEntry} from './rankings.js';
+import {rankingLimit,type RankingEntry,type RankingUserRecord} from './rankings.js';
 export {jstDate} from './login.js';
 
 type RecordRow = Record<string, unknown>;
@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS games_bot_allowed_channels(channel_id bigint PRIMARY 
 CREATE TABLE IF NOT EXISTS games_bot_weather_cities(city_name text PRIMARY KEY, city_id text NOT NULL);
 CREATE TABLE IF NOT EXISTS games_bot_events(event_id text PRIMARY KEY, created_at text NOT NULL);
 CREATE TABLE IF NOT EXISTS games_bot_sessions(session_id text PRIMARY KEY, payload text NOT NULL);
+CREATE TABLE IF NOT EXISTS games_bot_user_profiles(user_id numeric(20,0) PRIMARY KEY, display_name text NOT NULL, username text NOT NULL, fetched_at text NOT NULL);
 `;
 function dateString(value: unknown): string | null { return value instanceof Date ? value.toISOString().slice(0,10) : value ? String(value).slice(0,10) : null; }
 // vps側の運用要件: PostgreSQLは全TCP接続でTLSを強制(hostssl)し、自己署名証明書を使う。
@@ -136,11 +137,18 @@ export class Store {
     return this.transaction(c => c.query<{user_id:string;points:string}>(`SELECT user_id,points FROM games_bot_economy WHERE user_id<>$1 ORDER BY ${this.pointOrder(true)} LIMIT $2`, [botId,limit]));
   }
   async rankingExport(botId:string) {
-    return this.transaction(async c=>{
-      const rich=await c.query<RankingEntry>(`SELECT user_id,points FROM games_bot_economy WHERE user_id<>$1 ORDER BY ${this.pointOrder(true)} LIMIT $2`,[botId,rankingLimit]);
-      const poor=await c.query<RankingEntry>(`SELECT user_id,points FROM games_bot_economy WHERE user_id<>$1 AND points<0 ORDER BY ${this.pointOrder(false)} LIMIT $2`,[botId,rankingLimit]);
-      return {rich,poor};
-    });
+    return this.transaction(c=>c.query<RankingEntry>(`SELECT user_id,points FROM games_bot_economy WHERE user_id<>$1 ORDER BY ${this.pointOrder(true)} LIMIT $2`,[botId,rankingLimit]));
+  }
+  async rankingUsers(ids:string[]) {
+    if(!ids.length)return [];
+    return this.transaction(c=>c.query<RankingUserRecord>('SELECT user_id,display_name,username,fetched_at FROM games_bot_user_profiles WHERE user_id IN (SELECT jsonb_array_elements_text($1::jsonb)::numeric)',[JSON.stringify([...new Set(ids)])]));
+  }
+  async saveRankingUsers(users:RankingUserRecord[]) {
+    if(!users.length)return;
+    await this.transaction(c=>c.query(`INSERT INTO games_bot_user_profiles(user_id,display_name,username,fetched_at)
+      SELECT user_id,display_name,username,fetched_at FROM jsonb_to_recordset($1::jsonb) AS profiles(user_id numeric,display_name text,username text,fetched_at text)
+      ON CONFLICT(user_id) DO UPDATE SET display_name=EXCLUDED.display_name,username=EXCLUDED.username,fetched_at=EXCLUDED.fetched_at
+      WHERE EXCLUDED.fetched_at>=games_bot_user_profiles.fetched_at`,[JSON.stringify(users)]));
   }
   async rank(id:string,botId:string) {
     return this.transaction(c=>this.rankIn(c,id,botId));

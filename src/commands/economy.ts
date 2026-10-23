@@ -15,6 +15,7 @@ import {exceptionCards,isPublicChannel} from '../ui/errors.js';
 import {postErrorLog} from '../services/error-log.js';
 import {requireButtonOwner} from './button-owner.js';
 import {rankingExportResponse} from '../ui/rankings.js';
+import {resolveRankingUsers} from '../services/ranking-users.js';
 
 interface Confirm { owner:string; target?:string; amount?:bigint; kind:'give'|'gamble'; expires:number; channelId:string;message?:Message }
 function loginCard(result:Awaited<ReturnType<Store['login']>>,owner:string,now=new Date()) {
@@ -133,9 +134,10 @@ export class Economy {
       if(i.customId.split(':').length!==3)throw new UserError('pointを実行して一覧を開き直してください。');
       await i.deferReply({flags:MessageFlags.Ephemeral});
       if(action==='rankings') {
-        const {rich,poor}=await this.store.rankingExport(this.botId());
-        const name=(id:string)=>i.guild?.members.cache.get(id)?.displayName??i.client?.users.cache.get(id)?.globalName??i.client?.users.cache.get(id)?.username;
-        const {summary,attachments}=rankingExportResponse(rich,poor,name);
+        const ranks=await this.store.rankingExport(this.botId());
+        await this.edit(i,card('ランキングを準備中','表示名とユーザー名を取得しています。\n件数によって少し時間がかかります。','pending'));
+        const users=await resolveRankingUsers(ranks.map(entry=>entry.user_id),i.client,i.guild,this.store);
+        const {summary,attachments}=rankingExportResponse(ranks,id=>users.get(id));
         await this.edit(i,summary);
         for(const payload of attachments)await i.followUp({...payload,flags:MessageFlags.Ephemeral});
       } else {
