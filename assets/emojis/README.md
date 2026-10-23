@@ -22,7 +22,7 @@ png/                 # Discord登録用PNG。原本と同じ用途・種類で�
 
 - **英字A〜N・数字0〜9**：Twitter Twemoji v14.0.2のSVGから生成。
 - **Discordバッジ84種類**：73種は公式SVG、10種は公式PNG、Last Meadowの1種はアーカイブ画像。すべて `b_` 接頭辞を付けています。[取得元](SOURCES.md) を参照。
-- **盤面**：このプロジェクトのSVG。
+- **盤面**：このプロジェクトのSVG。外周に約2〜3pxの透明な余白を設けています。
 - **ステータス5種類**：従来のPNGから輪郭を抽出したSVGです。背景の不透明度は約14%、記号は不透明です。比較用のPNG原本も `originals/status/` に保存しています。
 
 Twemoji graphics: Copyright Twitter, Inc and other contributors. Licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

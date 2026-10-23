@@ -12,8 +12,8 @@ function fakeApi(initial=[]){
   const items=[...initial],images=new Map(),calls={created:0,removed:[],renamed:[]};
   return {items,calls,
     applicationId:async()=>'test-app',list:async()=>[...items],
-    create:async(name,image)=>{calls.created++;const emoji={id:String(1000+calls.created),name,animated:false};items.push(emoji);images.set(emoji.id,image);return emoji;},
-    rename:async(emoji,name)=>{calls.renamed.push(emoji.id);Object.assign(items.find(item=>item.id===emoji.id),{name});return {...emoji,name};},
+    create:async(name,image)=>{if(items.some(item=>item.name===name))throw new Error('Duplicate application emoji name');calls.created++;const emoji={id:String(1000+calls.created),name,animated:false};items.push(emoji);images.set(emoji.id,image);return emoji;},
+    rename:async(emoji,name)=>{if(items.some(item=>item.name===name&&item.id!==emoji.id))throw new Error('Duplicate application emoji name');calls.renamed.push(emoji.id);Object.assign(items.find(item=>item.id===emoji.id),{name});return {...emoji,name};},
     download:async emoji=>images.get(emoji.id)??images.get(items.find(item=>item.name===emoji.name&&images.has(item.id))?.id),
     remove:async emoji=>{calls.removed.push(emoji.id);items.splice(items.findIndex(item=>item.id===emoji.id),1);},
   };
@@ -31,6 +31,21 @@ test('全絵文字が128pxで、SVGまたは公式形式の原本を持ち、偽
     if(path.endsWith('.svg')){assert.match(source.toString(),/<svg[\s>]/);assert.doesNotMatch(source.toString(),/<image[\s>]|data:image|<script[\s>]/i);}
     else assert.equal((await sharp(source).metadata()).format,'png');
     if(/^o_[A-N]$|^\d_o$/.test(asset.name))assert.match(source.toString(),/viewBox="0 0 36 36"/);
+  }
+});
+
+test('盤面絵文字が従来の透明な外周余白を保つ',async()=>{
+  for(const name of ['o0','o1','o2','4_0','4_1','4_2']){
+    const entry=manifest.find(e=>e.name===name);
+    const {data,info}=await sharp(`assets/emojis/${entry.outputFile}`).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+    const alpha=(x,y)=>data[(y*128+x)*info.channels+3];
+    for(let p=0;p<128;p++){
+      assert.equal(alpha(0,p),0,name);assert.equal(alpha(127,p),0,name);
+      assert.equal(alpha(p,0),0,name);assert.equal(alpha(p,127),0,name);
+    }
+    const inset=name.startsWith('o')?3:2;
+    for(let p=0;p<inset;p++)assert.equal(alpha(p,64),0,name);
+    assert.ok(alpha(inset,64)>0,name);assert.equal(alpha(4,64),255,name);
   }
 });
 
@@ -128,4 +143,25 @@ test('管理ファイルまで失っても画像を照合し、異なる画像�
   await rm(join(dir,'emoji-sync.json'));
   const changed={...asset,image:await sharp(asset.image).negate().png().toBuffer()};
   assert.equal((await syncEmojiAssets(api,'test-app',dir,[changed])).created,1);
+}));
+
+test('画像更新を一時名で登録してから切り替え、各段階の失敗後も同名重複や再アップロードを起こさない',async()=>temporary(async dir=>{
+  const [asset]=await loadEmojiAssets(),api=fakeApi();
+  const first=await syncEmojiAssets(api,'test-app',dir,[asset]);const oldId=api.items[0].id;
+  const changed={...asset,image:await sharp(asset.image).negate().png().toBuffer()};
+  const create=api.create,remove=api.remove,rename=api.rename;
+  api.create=async()=>{throw new Error('upload failure');};
+  await assert.rejects(syncEmojiAssets(api,'test-app',dir,[changed]),/upload failure/);
+  assert.equal(api.items[0].id,oldId);assert.deepEqual(api.calls.removed,[]);
+  api.create=create;api.remove=async()=>{throw new Error('delete failure');};
+  await assert.rejects(syncEmojiAssets(api,'test-app',dir,[changed]),/delete failure/);
+  assert.equal(api.items.length,2);assert.equal(api.calls.created,2);
+  assert.deepEqual(JSON.parse(await readFile(join(dir,'emojis.json'),'utf8')),first.mappings);
+  api.remove=remove;api.rename=async()=>{throw new Error('rename failure');};
+  await assert.rejects(syncEmojiAssets(api,'test-app',dir,[changed]),/rename failure/);
+  assert.equal(api.items.length,1);assert.match(api.items[0].name,/_tmp_/);assert.equal(api.calls.created,2);
+  api.rename=rename;const result=await syncEmojiAssets(api,'test-app',dir,[changed]);
+  assert.equal(result.created,0);assert.equal(api.items.length,1);assert.equal(api.items[0].name,asset.name);
+  assert.notEqual(api.items[0].id,oldId);assert.deepEqual(api.calls.removed,[oldId]);
+  assert.equal((await syncEmojiAssets(api,'test-app',dir,[changed])).created,0);
 }));

@@ -87,10 +87,11 @@ export async function syncEmojiAssets(api:EmojiApi,applicationId:string,dataDir:
   for(const asset of assets) {
     const name=emojiAssetName(asset),sha256=createHash('sha256').update(asset.image).digest('hex');
     const legacyName=`${name}_gb2_${sha256.slice(0,8)}`;
+    const temporaryName=`${name.slice(0,15)}_tmp_${createHash('sha256').update(name).update(asset.image).digest('hex').slice(0,12)}`;
     let found:AppEmoji|undefined;
-    for(const candidate of existing.filter(emoji=>!emoji.animated&&(emoji.name===name||emoji.name===legacyName)).sort((a,b)=>a.id.localeCompare(b.id))) {
+    for(const candidate of existing.filter(emoji=>!emoji.animated&&[name,legacyName,temporaryName].includes(emoji.name)).sort((a,b)=>a.id.localeCompare(b.id))) {
       const record=records.get(candidate.id);
-      if(record?.sha256===sha256||candidate.name===legacyName){found=candidate;break;}
+      if(record?.sha256===sha256||candidate.name===legacyName||candidate.name===temporaryName){found=candidate;break;}
       if(record?.sha256)continue;
       // Recover an upload after a lost cache without assuming its image is current.
       const decode=(image:Buffer)=>sharp(image).resize(128,128).ensureAlpha().raw().toBuffer();
@@ -98,9 +99,15 @@ export async function syncEmojiAssets(api:EmojiApi,applicationId:string,dataDir:
     }
     if(!found){
       if(existing.length>=2000)throw new Error('絵文字の空き容量が足りません。不要な登録を整理してください。');
-      found=await api.create(name,asset.image);existing.push(found);created++;
+      found=await api.create(existing.some(emoji=>emoji.name===name)?temporaryName:name,asset.image);existing.push(found);created++;
     }
-    if(found.name!==name){const updated=await api.rename(found,name);Object.assign(found,updated);}
+    if(found.name!==name){
+      records.set(found.id,{name,id:found.id,sha256});await saveState();
+      for(const previous of existing.filter(emoji=>emoji.name===name&&emoji.id!==found.id)){
+        await api.remove(previous);records.delete(previous.id);existing.splice(existing.indexOf(previous),1);
+      }
+      const updated=await api.rename(found,name);Object.assign(found,updated);
+    }
     const previousRecord=records.get(found.id);
     records.set(found.id,{name,id:found.id,sha256});
     // Persist each upload so a later failure does not create duplicates on retry.
