@@ -4,10 +4,10 @@ import type { PGlite } from '@electric-sql/pglite';
 import { join } from 'node:path';
 import { Pool, types, type PoolClient } from 'pg';
 import { settings } from '../config.js';
-import {loginReward,loginDay,jstDate} from './login.js';
+import {loginReward,loginDay,jstDate,nextLoginTime} from './login.js';
 import {transferFee} from './money.js';
 import {rankingLimit,type RankingEntry,type RankingUserRecord} from './rankings.js';
-import {dailyWealthTax,wealthTaxAllowance} from './wealth-tax.js';
+import {dailyWealthTax,wealthTaxThreshold} from './wealth-tax.js';
 export {jstDate} from './login.js';
 
 type RecordRow = Record<string, unknown>;
@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS games_bot_weather_cities(city_name text PRIMARY KEY, 
 CREATE TABLE IF NOT EXISTS games_bot_events(event_id text PRIMARY KEY, created_at text NOT NULL);
 CREATE TABLE IF NOT EXISTS games_bot_sessions(session_id text PRIMARY KEY, payload text NOT NULL);
 CREATE TABLE IF NOT EXISTS games_bot_user_profiles(user_id numeric(20,0) PRIMARY KEY, display_name text NOT NULL, username text NOT NULL, fetched_at text NOT NULL);
+CREATE TABLE IF NOT EXISTS games_bot_tax_exemptions(user_id numeric(20,0) NOT NULL, tax_date date NOT NULL, PRIMARY KEY(user_id,tax_date));
 `;
 function dateString(value: unknown): string | null { return value instanceof Date ? value.toISOString().slice(0,10) : value ? String(value).slice(0,10) : null; }
 // vps側の運用要件: PostgreSQLは全TCP接続でTLSを強制(hostssl)し、自己署名証明書を使う。
@@ -70,6 +71,8 @@ export class Store {
         await importLocalSqlite(this.local,join(this.dir,'bot.sqlite'));
       }
     }
+    await this.transaction(c=>c.query(`INSERT INTO games_bot_tax_exemptions(user_id,tax_date)
+      SELECT user_id,last_login+1 FROM games_bot_economy WHERE last_login IS NOT NULL ON CONFLICT DO NOTHING`));
   }
   private connection(client?: PoolClient): Connection {
     return { query: async <T extends RecordRow>(sql: string, params: unknown[] = []) => {
@@ -168,21 +171,35 @@ export class Store {
     });
   }
   async wealthTax(botId:string,now=new Date()) {
-    const ids=await this.transaction(async c=>(await c.query(`SELECT user_id FROM games_bot_economy WHERE user_id<>$1 AND points>$2`,[botId,wealthTaxAllowance.toString()])).map(r=>String(r.user_id)));
+    const today=jstDate(now),key=`tax:${today}`;
+    const ids=await this.transaction(async c=>{
+      if((await c.query('SELECT 1 FROM games_bot_events WHERE event_id=$1',[key])).length)return null;
+      return (await c.query(`SELECT user_id FROM games_bot_economy WHERE user_id<>$1 AND points>=$2`,[botId,wealthTaxThreshold.toString()])).map(r=>String(r.user_id));
+    });
+    if(ids===null)return 0;
     return this.accounts(ids,async(a,c)=>{
-      if(!await this.once(c,`tax:${jstDate(now)}`))return 0;
-      let count=0;for(const user of a.values()) {const tax=dailyWealthTax(user.points);if(tax){user.points-=tax;count++;}}return count;
+      if(!await this.once(c,key))return 0;
+      const exempt=new Set((await c.query('SELECT user_id FROM games_bot_tax_exemptions WHERE tax_date=$1',[today])).map(r=>String(r.user_id)));
+      let count=0;for(const user of a.values()) {
+        if(exempt.has(user.id))continue;
+        const tax=dailyWealthTax(user.points);if(tax){user.points-=tax;count++;}
+      }
+      await c.query('DELETE FROM games_bot_tax_exemptions WHERE tax_date<$1',[today]);
+      return count;
     });
   }
   async login(id: string, botId: string, now = new Date()) {
+    await this.wealthTax(botId,now);
     return this.accounts([id], async(a,c)=>{
       const user=a.get(id)!; const today=jstDate(now);
+      const taxExemptDate=jstDate(nextLoginTime(now));
       const rank=user.newAccount?-1:await this.rankIn(c,id,botId);
-      if(user.lastLogin===today)return { received:false, points:0n, days:user.consecutive, balance:user.points,rank };
+      if(user.lastLogin===today)return { received:false, points:0n, days:user.consecutive, balance:user.points,rank,taxExemptDate };
       user.consecutive=loginDay(user.lastLogin,user.consecutive,now);
       const points=loginReward(user.consecutive,rank);
       user.lastLogin=today; user.points+=points;
-      return {received:true,points,days:user.consecutive,balance:user.points,rank};
+      await c.query('INSERT INTO games_bot_tax_exemptions(user_id,tax_date) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,taxExemptDate]);
+      return {received:true,points,days:user.consecutive,balance:user.points,rank,taxExemptDate};
     });
   }
   async allowedChannels() { return this.transaction(async c => new Set((await c.query('SELECT channel_id FROM games_bot_allowed_channels')).map(r=>String(r.channel_id)))); }

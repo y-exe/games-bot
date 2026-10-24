@@ -8,7 +8,7 @@ import { jstDate } from '../data/store.js';
 import { card, button, row } from '../ui/cards.js';
 import { Context, positiveAmount } from './context.js';
 import { emoji } from '../ui/emojis.js';
-import {loginForecast,loginDay,loginReward,nextLoginTime} from '../data/login.js';
+import {loginForecast,loginDay,loginReward,loginMilestoneBonus,nextLoginTime} from '../data/login.js';
 import {rollGamble,diceDelta,stakeBounds} from '../data/gamble.js';
 import {transferFee,formatAmount} from '../data/money.js';
 import {exceptionCards,isPublicChannel} from '../ui/errors.js';
@@ -16,17 +16,21 @@ import {postErrorLog} from '../services/error-log.js';
 import {requireButtonOwner} from './button-owner.js';
 import {rankingExportResponse} from '../ui/rankings.js';
 import {resolveRankingUsers} from '../services/ranking-users.js';
+import {dailyWealthTax} from '../data/wealth-tax.js';
 
 interface Confirm { owner:string; target?:string; amount?:bigint; kind:'give'|'gamble'; expires:number; channelId:string;message?:Message }
 function loginCard(result:Awaited<ReturnType<Store['login']>>,owner:string,now=new Date()) {
   const next=Math.floor(nextLoginTime(now).getTime()/1000);
+  const milestone=loginMilestoneBonus(result.days);
   const body=[
     result.received?`**\`+${formatAmount(result.points)}pt\`** を獲得 · __**連続${result.days}日目**__`:'今日のボーナスは受け取り済みです。',
     `**現在のポイント** · \`${formatAmount(result.balance)}pt\``,
     `**現在の順位** · \`${result.rank>0?`${result.rank}位`:'圏外'}\``,
+    ...(milestone?[`**連続ログイン特典** · 上の報酬に **+${formatAmount(milestone)}pt** 込み`]:[]),
+    '**翌日0時の徴収** · **免除**',
     `**次回の受取** · <t:${next}:F> · <t:${next}:R>`,
     '-# 連続ログイン・ランキング順位でボーナスが増えます。',
-    '-# 受取は1日1回 · 日本時間0時に切替 · 10日目の次は1日目',
+    '-# 受取は1日1回 · 日本時間0時に切替 · 5日目+50pt / 10日目+100pt · 10日目の次は1日目',
   ].join('\n');
   return card(result.received?'ログインボーナス':'ログイン済み',body,result.received?'success':'warning',[row(button(`eco:future:${owner}`,'今後のログボ',ButtonStyle.Secondary,emoji('status_info')))],undefined,undefined,undefined,result.received?0xf1c40f:0xe67e22);
 }
@@ -36,7 +40,8 @@ export function loginForecastCard(account:{lastLogin:string|null;consecutive:num
   const next=Math.floor(nextLoginTime(now).getTime()/1000);
   const upcoming=loginForecast(last,consecutive,rank,now);
   const today=pending?`**今日の未受取** · **\`+${formatAmount(loginReward(days,rank))}pt\`**（${days}日目）\n-# 下のボタンで今日の分を受け取れます。`:`**次回の受取** · <t:${next}:F> · <t:${next}:R>`;
-  return card('今後のログインボーナス',`**現在の順位** · \`${rank>0?`${rank}位`:'圏外'}\`\n${today}\n\n**今後7日間の報酬**\n${upcoming.map(d=>`> **${d.offset===1?'明日':`${d.offset}日後`}**（${d.date.slice(5)} / ${d.days}日目） · **\`+${formatAmount(d.points)}pt\`**`).join('\n')}\n-# 今日から毎日受け取り、現在の順位が続く場合の予測です。\n-# 順位の変動や受取忘れで報酬は変わります。`,'info',pending?[row(button(`eco:login:${owner}`,'今日のログボを受け取る',ButtonStyle.Success,emoji('status_success')))]:[],undefined,undefined,undefined,0x1abc9c);
+  const exemption=`**翌日0時の徴収** · ${pending?'今日の受取で免除':'**免除**'}`;
+  return card('今後のログインボーナス',`**現在の順位** · \`${rank>0?`${rank}位`:'圏外'}\`\n${today}\n${exemption}\n\n**今後7日間の報酬**\n${upcoming.map(d=>`> **${d.offset===1?'明日':`${d.offset}日後`}**（${d.date.slice(5)} / ${d.days}日目） · **\`+${formatAmount(d.points)}pt\`**`).join('\n')}\n-# 今日から毎日受け取り、現在の順位が続く場合の予測です。\n-# 順位の変動や受取忘れで報酬は変わります。`,'info',pending?[row(button(`eco:login:${owner}`,'今日のログボを受け取る',ButtonStyle.Success,emoji('status_success')))]:[],undefined,undefined,undefined,0x1abc9c);
 }
 export class Economy {
   private repeats=new Map<string,{owner:string;amount:string;channelId:string;expires:number}>();
@@ -82,9 +87,11 @@ export class Economy {
       const points=await this.store.balance(ctx.user.id);const ranks=await this.store.ranking(this.botId());const rank=await this.store.rank(ctx.user.id,this.botId());const poor=await this.store.poorRanking(this.botId());
       const poorRank=points<0n?await this.store.poorRank(ctx.user.id,this.botId()):-1;
       const account=await this.store.account(ctx.user.id);const gambleCount=account?.gambleDate===jstDate()?account.gambleCount:0;
+      const tax=dailyWealthTax(points);
+      const taxLine=account?.lastLogin===jstDate()?'**翌日0時の徴収** · **免除（ログボ受取済み）**':tax>0n?`**翌日0時の徴収目安** · **${formatAmount(tax)}pt**\n-# 今日のログボ受取で免除されます。`:'**翌日0時の徴収** · **対象外（1万pt未満）**';
       const gambleLine=points>0n?`**今日のギャンブル** · **${Math.max(0,5-gambleCount)} / 5回**`:'**今日のギャンブル** · **無制限（救済措置）**';
       const list=(entries:typeof ranks,medals=false)=>entries.map((p,i)=>`${medals&&i<3?['🥇 ','🥈 ','🥉 '][i]:''}**${i+1}位** <@${p.user_id}> · **${formatAmount(p.points)}pt**`).join('\n');
-      return ctx.send(card('ゲームポイントランキング',`**あなたのポイント** · **${formatAmount(points)}pt**\n**富豪ランク** · **${rank>0?`${rank}位`:'圏外'}**${poorRank>0?` · 貧乏ランク **${poorRank}位**`:''}\n${gambleLine}\n\n**🏆 富豪ランキング · Top 5**\n${list(ranks.slice(0,5),true)||'まだプレイヤーがいません。'}${poor.length?`\n\n**💸 貧乏ランキング · Top 3**\n${list(poor.slice(0,3))}`:''}`,'success',[row(button(`eco:login:${ctx.user.id}`,'ログインボーナス',ButtonStyle.Success,emoji('status_success')),button(`eco:point:${ctx.user.id}`,'富豪 Top 10',ButtonStyle.Secondary,emoji('status_info')),button(`eco:poor:${ctx.user.id}`,'貧乏 Top 10',ButtonStyle.Secondary,emoji('status_pending')),button(`eco:rankings:${ctx.user.id}`,'さらに表示（txt）',ButtonStyle.Secondary))], undefined,undefined,undefined,0xf1c40f));
+      return ctx.send(card('ゲームポイントランキング',`**あなたのポイント** · **${formatAmount(points)}pt**\n**富豪ランク** · **${rank>0?`${rank}位`:'圏外'}**${poorRank>0?` · 貧乏ランク **${poorRank}位**`:''}\n${gambleLine}\n${taxLine}\n\n**🏆 富豪ランキング · Top 5**\n${list(ranks.slice(0,5),true)||'まだプレイヤーがいません。'}${poor.length?`\n\n**💸 貧乏ランキング · Top 3**\n${list(poor.slice(0,3))}`:''}`,'success',[row(button(`eco:login:${ctx.user.id}`,'ログインボーナス',ButtonStyle.Success,emoji('status_success')),button(`eco:point:${ctx.user.id}`,'富豪 Top 10',ButtonStyle.Secondary,emoji('status_info')),button(`eco:poor:${ctx.user.id}`,'貧乏 Top 10',ButtonStyle.Secondary,emoji('status_pending')),button(`eco:rankings:${ctx.user.id}`,'さらに表示（txt）',ButtonStyle.Secondary))], undefined,undefined,undefined,0xf1c40f));
     }
     if(name==='login') {
       const now=new Date();const result=await this.store.login(ctx.user.id,this.botId(),now);

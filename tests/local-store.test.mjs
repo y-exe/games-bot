@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { Store } from '../src/data/store.ts';
+import {dailyWealthTax} from '../src/data/wealth-tax.ts';
 
 test('PGliteで大きいポイント・送金・順位・ログボ・並列処理を検証する', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'games-bot-pglite-'));
@@ -27,10 +28,12 @@ test('PGliteで大きいポイント・送金・順位・ログボ・並列処�
     const date = new Date('2026-10-13T03:00:00Z');
     assert.equal((await store.login('300', '999', date)).received, true);
     assert.equal((await store.login('300', '999', date)).received, false);
+    const afterTax=before-dailyWealthTax(before);
+    assert.equal(await store.balance('100'),afterTax);
     assert.equal(await store.toggleChannel('123456789012345678'), true);
     await store.saveSession('session', { owner: '300' });
     await store.close(); store = new Store('', directory); await store.initialize();
-    assert.equal(await store.balance('100'), result.balance);
+    assert.equal(await store.balance('100'),afterTax);
     assert.equal((await store.allowedChannels()).has('123456789012345678'), true);
     assert.equal((await store.sessions())[0].payload, JSON.stringify({ owner: '300' }));
     await assert.rejects(store.transaction(c => c.query("UPDATE games_bot_economy SET points='NaN' WHERE user_id=100")), /constraint/);
