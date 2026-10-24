@@ -6,6 +6,7 @@ import {MessageFlags,Routes,type Client,type ButtonInteraction,type InteractionE
 import {buttonLifetimeMs,privateButtonLifetimeMs,expiringPrefixes} from '../commands/policy.js';
 import {settings} from '../config.js';
 import {disableRawButtons} from './cards.js';
+import {noMentions,noApiMentions} from './mentions.js';
 
 type Edit=(components:ReturnType<typeof disableRawButtons>)=>Promise<unknown>;
 interface Entry {channelId:string;messageId:string;expires:number;private?:boolean;components?:readonly unknown[];edit?:Edit;retryAt?:number}
@@ -105,7 +106,7 @@ export class ButtonExpiryRegistry {
     }
     if(activeControls(components??[])) {
       const disabled=disableRawButtons(components??[],isExpiring);
-      const edit=e.private?e.edit!:(value:typeof disabled)=>client.rest.patch(Routes.channelMessage(e.channelId,e.messageId),{body:{components:value,flags:MessageFlags.IsComponentsV2}});
+      const edit=e.private?e.edit!:(value:typeof disabled)=>client.rest.patch(Routes.channelMessage(e.channelId,e.messageId),{body:{components:value,flags:MessageFlags.IsComponentsV2,allowed_mentions:noApiMentions}});
       try {await edit(disabled);}
       catch(error) {
         const repaired=repairInvalidEmojis(disabled,error);
@@ -157,7 +158,7 @@ const registry=new ButtonExpiryRegistry(settings.dataDir);
 let timer:NodeJS.Timeout|undefined;
 export const trackExpiringButtons=(message:ExpiringMessage)=>registry.track(message);
 export function trackInteractionButtons(i:Pick<ButtonInteraction,'webhook'>,message:ExpiringMessage) {
-  registry.track(message,components=>i.webhook.editMessage(message.id,{components:components as InteractionEditReplyOptions['components'],flags:MessageFlags.IsComponentsV2}));
+  registry.track(message,components=>i.webhook.editMessage(message.id,{components:components as InteractionEditReplyOptions['components'],flags:MessageFlags.IsComponentsV2,allowedMentions:noMentions}));
 }
 export const getDisabledAt=(id:string)=>registry.disabled(id);
 export const getButtonDeadline=(id:string)=>registry.deadline(id);

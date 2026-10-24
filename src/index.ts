@@ -5,6 +5,7 @@ import { settings, requireToken } from './config.js';
 import { loadEmojis } from './ui/emojis.js';
 import {syncBotEmojis} from './ui/emoji-sync.js';
 import { card, disableRawButtons } from './ui/cards.js';
+import {noMentions,noApiMentions} from './ui/mentions.js';
 import {getDisabledAt,getButtonDeadline,buttonExpiryMs,startButtonExpirySweep,stopButtonExpirySweep} from './ui/button-expiry.js';
 import { Store } from './data/store.js';
 import { Games, type GameKind } from './games/manager.js';
@@ -25,7 +26,7 @@ import { authorizeChannel } from './commands/delivery.js';
 import { promptSpecs, promptCard, needsPrompt, buildModal, handlePromptSubmit, openPrompt } from './commands/prompts.js';
 
 requireToken();
-const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent]});
+const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],allowedMentions:noMentions});
 if(settings.production&&!settings.databaseUrl)throw new UserError('本番起動にはDATABASE_URLが必要です。');
 const store=new Store();
 try{await store.initialize();}catch(error){const report=errorReport(error,'database startup');await store.close();throw new UserError(`データベースの初期化に失敗しました。エラーID: ${report.id}`);}
@@ -71,8 +72,8 @@ async function interaction(i:Interaction) {
         await i.deferReply({flags:MessageFlags.Ephemeral});
         const selective=(id:string)=>expiringPrefixes.some(prefix=>id.startsWith(prefix));
         const components=disableRawButtons(i.message.components,selective);
-        if(i.message.flags.has(MessageFlags.Ephemeral))await i.webhook.editMessage(i.message.id,{components:components as InteractionEditReplyOptions['components'],flags:MessageFlags.IsComponentsV2}).catch(()=>{});
-        else await i.client.rest.patch(Routes.channelMessage(i.channelId!,i.message.id),{body:{components,flags:MessageFlags.IsComponentsV2}}).catch(()=>{});
+        if(i.message.flags.has(MessageFlags.Ephemeral))await i.webhook.editMessage(i.message.id,{components:components as InteractionEditReplyOptions['components'],flags:MessageFlags.IsComponentsV2,allowedMentions:noMentions}).catch(()=>{});
+        else await i.client.rest.patch(Routes.channelMessage(i.channelId!,i.message.id),{body:{components,flags:MessageFlags.IsComponentsV2,allowed_mentions:noApiMentions}}).catch(()=>{});
         const disabledAt=getDisabledAt(i.message.id)??deadline;
         throw new UserError(`このカードのボタンは <t:${Math.floor(disabledAt/1000)}:R> に無効になりました。\n-# もう一度コマンドを実行してください。`);
       }

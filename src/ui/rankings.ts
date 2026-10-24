@@ -3,6 +3,7 @@ import {rankingLimit,type RankingEntry} from '../data/rankings.js';
 import {formatAmount} from '../data/money.js';
 import {card} from './cards.js';
 import type {RankingUser} from '../services/ranking-users.js';
+import {noMentions} from './mentions.js';
 
 const previewBytes=48*1024;
 function previewParts(text:string) {
@@ -36,7 +37,7 @@ export function rankingExportResponse(ranks:RankingEntry[],resolveUser:(id:strin
   const files=parts.map((part,index)=>new AttachmentBuilder(Buffer.from(part,'utf8'),{name:parts.length===1?'point-rankings.txt':`point-rankings-${String(index+1).padStart(2,'0')}.txt`}));
   const messages=[];
   for(let start=0;start<files.length;start+=10)messages.push({
-    files:files.slice(start,start+10),allowedMentions:{parse:[] as ('users'|'roles'|'everyone')[],repliedUser:false},
+    files:files.slice(start,start+10),allowedMentions:noMentions,
   });
   const summary=card('ゲームポイント · ランキング一覧',`**上位 ${formatAmount(ranks.length)}人**\n下の添付ファイルを、Discord内のプレビューで読めます。\n-# ポイントの多い順に最大1,000人 · 取得時点の順位・残高です。${parts.length>1?`\n-# 長い一覧は${parts.length}ファイルに分けています。`:''}`,'info',[],undefined,undefined,undefined,0xf1c40f);
   return {summary,attachments:messages};

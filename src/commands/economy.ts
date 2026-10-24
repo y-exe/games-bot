@@ -166,7 +166,7 @@ export class Economy {
     if(!data||data.expires<Date.now()||data.owner!==i.user.id||data.channelId!==i.channelId)return i.reply({...card('確認を開き直してください','期限切れ、または別の人の確認画面です。','warning'),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
     if(action==='mechanism') {
       if(data.kind!=='gamble')throw new UserError('この操作はギャンブル専用です。');
-      await i.reply({...card('ギャンブルの仕組み',`**1. 賭け金の決定**\n- プラス残高は所持額の約1/3〜全額から抽選。\n- 借金中は借金額の **5〜10%** から抽選（端数切り捨て・最低100pt）。\n- 残高0ptの場合は **100pt**。\n\n**2. 倍率の抽選**\n- 85%: ±1.51〜3.00倍\n- 13%: ±3.01〜5.00倍\n- 2%: ±5.01〜10.00倍\n- 正負は各50%。\n\n**3. ポイント変動**\n\`賭け金 × 倍率（小数部分を0方向に切り捨て） − 賭け金\`\n-# 借金中は回数無制限。プラス残高は毎日0時（日本時間）に5回へリセット。`),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});return;
+      await i.reply({...card('ギャンブルの仕組み',`**1. 賭け金の決定**\n- プラス残高は所持額の約1/3〜全額から抽選。\n- 借金中は借金額の **5〜約10.89%** から抽選（端数切り捨て・最低100pt）。\n- 残高0ptの場合は **100pt**。\n\n**2. 倍率の抽選**\n- 85%: ±1.51〜3.00倍\n- 13%: ±3.01〜5.00倍\n- 2%: ±5.01〜10.00倍\n- 正負は各50%。\n\n**3. ポイント変動**\n\`賭け金 × 倍率（小数部分を0方向に切り捨て） − 賭け金\`\n-# 借金中は回数無制限。プラス残高は毎日0時（日本時間）に5回へリセット。`),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});return;
     }
     if(action!=='cancel'&&action!=='confirm')throw new UserError('操作が見つかりません。');
     this.confirms.delete(key!);await i.deferUpdate();

@@ -31,6 +31,7 @@ test('30分ちょうどで公開カードの実ボタンを無効化し、URL・
   now=29*60_000;await registry.sweep(client);assert.equal(client.edits.length,0);
   message.editedTimestamp=now;registry.track(message);assert.equal(registry.deadline(message.id),30*60_000);
   now=30*60_000;await registry.sweep(client);assert.equal(client.edits.length,1);
+  assert.deepEqual(client.edits[0].allowed_mentions,{parse:[],replied_user:false});
   const buttons=controls(client.edits[0].components);
   assert.equal(buttons.find(b=>b.custom_id?.startsWith('help:')).disabled,true);
   assert.equal(buttons.find(b=>b.custom_id?.startsWith('game:')).disabled,false);

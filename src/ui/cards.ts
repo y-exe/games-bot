@@ -1,5 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, TextDisplayBuilder, type StringSelectMenuBuilder } from 'discord.js';
 import { emoji } from './emojis.js';
+import {noMentions} from './mentions.js';
 
 export type Status = 'success' | 'danger' | 'info' | 'warning' | 'pending';
 const colors: Record<Status,number> = { success: 0x2ecc71, danger: 0xe74c3c, info: 0x3498db, warning: 0xe67e22, pending: 0x95a5a6 };
@@ -35,7 +36,7 @@ export function card(title: string, body: string, status: Status = 'info', rows:
     for(const r of rows)addRow(r);
   }
   container.addTextDisplayComponents(new TextDisplayBuilder().setContent(legalFooter));
-  return { flags: MessageFlags.IsComponentsV2 as const, components: [container], allowedMentions: { parse: [] as ('users'|'roles'|'everyone')[], repliedUser: false } };
+  return { flags: MessageFlags.IsComponentsV2 as const, components: [container], allowedMentions:noMentions };
 }
 export function errorCard(message: string) { return card('操作を確認してください', message.replace(/。(?!\n|$)/g,'。\n'), 'warning'); }
 type RawComponent=Record<string,unknown>&{type:number;components?:unknown[];custom_id?:string;disabled?:boolean};

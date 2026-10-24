@@ -6,6 +6,7 @@ import {resolveGuildTarget} from './targets.js';
 import {redact} from '../errors.js';
 import {isPublicChannel} from '../ui/errors.js';
 import {postErrorLog} from '../services/error-log.js';
+import {noMentions} from '../ui/mentions.js';
 
 export class Context {
   private response?:Message;
@@ -55,6 +56,7 @@ export class Context {
     return message;
   }
   async send(payload: MessageCreateOptions): Promise<Message> {
+    payload={...payload,allowedMentions:noMentions};
     if(this.slash) {
       if(this.slash.deferred||this.slash.replied)return this.deliver(await this.slash.editReply({...payload,flags:MessageFlags.IsComponentsV2} as Parameters<ChatInputCommandInteraction['editReply']>[0]));
       await this.slash.reply({...payload,flags:MessageFlags.IsComponentsV2|(this.privateDelivery?MessageFlags.Ephemeral:0)} as Parameters<ChatInputCommandInteraction['reply']>[0]);return this.deliver(await this.slash.fetchReply());
@@ -72,7 +74,7 @@ export class Context {
     this.response=this.privateDelivery?await this.user.send(payload):await (this.source as Message).reply(payload);return this.deliver(this.response);
   }
   async sendAttachments(files:AttachmentBuilder[]):Promise<Message> {
-    const payload={files,allowedMentions:{parse:[] as ('users'|'roles'|'everyone')[],repliedUser:false}};
+    const payload={files,allowedMentions:noMentions};
     const interaction=this.slash??this.modal??this.componentSource;
     if(interaction)return interaction.followUp({...payload,flags:this.privateDelivery?MessageFlags.Ephemeral:undefined});
     return this.privateDelivery?this.user.send(payload):(this.source as Message).reply(payload);

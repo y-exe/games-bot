@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {stakeBounds,rollGamble,diceDelta} from '../src/data/gamble.ts';
 
-test('借金中は5〜10%・最低100ptで抽選し、少額と割合の境界が連続する',()=>{
+test('借金中は最低100ptと最大98%返済の賭け金を使い、少額と割合の境界が連続する',()=>{
   for(const [balance,min,max]of [
     [0n,100n,100n],[-1n,100n,100n],[-100n,100n,100n],
-    [-999n,100n,100n],[-1000n,100n,100n],[-1009n,100n,100n],[-1010n,100n,101n],
-    [-2000n,100n,200n],[-2019n,100n,201n],[-2020n,101n,202n],
-    [-10000n,500n,1000n],[-1000000n,50000n,100000n],
+    [-927n,100n,100n],[-928n,100n,101n],[-999n,100n,108n],[-1000n,100n,108n],
+    [-2000n,100n,217n],[-2019n,100n,219n],[-2020n,101n,219n],
+    [-10000n,500n,1088n],[-1000000n,50000n,108888n],
   ])assert.deepEqual(stakeBounds(balance),{min,max});
   const huge=10n**110n;
-  assert.deepEqual(stakeBounds(-huge),{min:huge/20n,max:huge/10n});
+  assert.deepEqual(stakeBounds(-huge),{min:huge/20n,max:huge*98n/900n});
 });
 
 test('借金を大きくしても最高の当たりで高額のプラス残高へ飛び越えない',()=>{
@@ -21,11 +21,15 @@ test('借金を大きくしても最高の当たりで高額のプラス残高�
     assert.equal(result.multiplier,1000);
     const bestBalance=-debt+result.delta;
     assert.ok(bestBalance<=900n);
-    if(debt>=1000n)assert.ok(bestBalance<=0n);
+    if(debt>=1000n) {
+      assert.ok(result.delta*100n<=debt*98n);
+      assert.ok(debt*98n-result.delta*100n<900n);
+      assert.ok(bestBalance<0n);
+    }
   }
   const units=[0,0.999999];
   const jackpot=rollGamble(-1000000n,highest,()=>units.shift());
-  assert.equal(jackpot.multiplier,1000);assert.equal(-1000000n+jackpot.delta,-100000n);
+  assert.equal(jackpot.multiplier,1000);assert.equal(-1000000n+jackpot.delta,-20008n);
   const smallUnits=[0,0.999999];
   const comeback=rollGamble(-100n,highest,()=>smallUnits.shift());
   assert.equal(-100n+comeback.delta,800n);
@@ -42,7 +46,7 @@ test('全残高で同じ倍率分布と正負の抽選を使い、負け側の�
   }
   const units=[0,0.999999];
   const loss=rollGamble(-1000000n,(min,max)=>max===1n?0n:max,()=>units.shift());
-  assert.equal(-1000000n+loss.delta,-2100000n);
+  assert.equal(-1000000n+loss.delta,-2197768n);
 });
 
 test('プラス残高の賭け金とBetの配当は従来どおりで固定上限を付けない',()=>{
