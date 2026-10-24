@@ -7,6 +7,7 @@ import { settings } from '../config.js';
 import {loginReward,loginDay,jstDate} from './login.js';
 import {transferFee} from './money.js';
 import {rankingLimit,type RankingEntry,type RankingUserRecord} from './rankings.js';
+import {dailyWealthTax,wealthTaxAllowance} from './wealth-tax.js';
 export {jstDate} from './login.js';
 
 type RecordRow = Record<string, unknown>;
@@ -167,10 +168,10 @@ export class Store {
     });
   }
   async wealthTax(botId:string,now=new Date()) {
-    const ids=await this.transaction(async c=>(await c.query(`SELECT user_id FROM games_bot_economy WHERE user_id<>$1 AND points>=100`,[botId])).map(r=>String(r.user_id)));
+    const ids=await this.transaction(async c=>(await c.query(`SELECT user_id FROM games_bot_economy WHERE user_id<>$1 AND points>$2`,[botId,wealthTaxAllowance.toString()])).map(r=>String(r.user_id)));
     return this.accounts(ids,async(a,c)=>{
       if(!await this.once(c,`tax:${jstDate(now)}`))return 0;
-      let count=0;for(const user of a.values()) {const tax=user.points>=3000n?50n:user.points>=500n?10n:user.points>=100n?5n:0n;if(tax){user.points-=tax;count++;}}return count;
+      let count=0;for(const user of a.values()) {const tax=dailyWealthTax(user.points);if(tax){user.points-=tax;count++;}}return count;
     });
   }
   async login(id: string, botId: string, now = new Date()) {

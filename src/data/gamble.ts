@@ -19,10 +19,9 @@ export function multiplierCents(value:number) {
   return Number(rounded)*(value<0?-1:1);
 }
 export function stakeBounds(current:bigint) {
-  const magnitude=current<0n?-current:current;
-  const min=current>0n?(current/3n||1n):magnitude<=100n?100n:magnitude/6n;
-  const max=current>0n?current:magnitude<=100n?100n:magnitude/2n;
-  return {min,max};
+  if(current>0n)return {min:current/3n||1n,max:current};
+  const debt=-current;
+  return {min:debt/20n>100n?debt/20n:100n,max:debt/10n>100n?debt/10n:100n};
 }
 export function rollGamble(current:bigint,integer=(min:bigint,max:bigint)=>randomBigInt(min,max),unit=randomUnit) {
   const {min,max}=stakeBounds(current),stake=integer(min,max);

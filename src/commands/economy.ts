@@ -9,7 +9,7 @@ import { card, button, row } from '../ui/cards.js';
 import { Context, positiveAmount } from './context.js';
 import { emoji } from '../ui/emojis.js';
 import {loginForecast,loginDay,loginReward,nextLoginTime} from '../data/login.js';
-import {rollGamble,diceDelta} from '../data/gamble.js';
+import {rollGamble,diceDelta,stakeBounds} from '../data/gamble.js';
 import {transferFee,formatAmount} from '../data/money.js';
 import {exceptionCards,isPublicChannel} from '../ui/errors.js';
 import {postErrorLog} from '../services/error-log.js';
@@ -114,7 +114,8 @@ export class Economy {
       const account=await this.store.account(ctx.user.id);const balance=account?.points??0n;
       const count=account?.gambleDate===jstDate()?account.gambleCount:0;
       if(balance>0n&&count>=5)throw new UserError('今日は5回プレイ済みです。betで遊べます。');
-      body=`**現在のポイント** · \`${formatAmount(balance)}pt\`\n**本日の残り** · ${balance>0n?`**${5-count} / 5回**`:'**無制限（救済措置）**'}\n\n**ギャンブルの仕組み**\n- 賭け金・倍率はランダム。\n- 倍率は **±1.51〜10.00倍**。\n- プラス残高は **1日5回**、借金中は **回数無制限**。\n-# ポイント変動 = 賭け金 × 倍率 − 賭け金`;
+      const {min,max}=stakeBounds(balance),stakeRange=min===max?`${formatAmount(min)}pt`:`${formatAmount(min)}〜${formatAmount(max)}pt`;
+      body=`**現在のポイント** · \`${formatAmount(balance)}pt\`\n**賭け金の範囲** · **${stakeRange}**\n**本日の残り** · ${balance>0n?`**${5-count} / 5回**`:'**無制限（救済措置）**'}\n\n**ギャンブルの仕組み**\n- 賭け金・倍率はランダム。\n- 倍率は **±1.51〜10.00倍**。\n- プラス残高は **1日5回**、借金中は **回数無制限**。\n-# ポイント変動 = 賭け金 × 倍率 − 賭け金`;
     }
     await this.expire();
     for(const [k,v] of this.details)if(v.expires<Date.now())this.details.delete(k);
@@ -165,7 +166,7 @@ export class Economy {
     if(!data||data.expires<Date.now()||data.owner!==i.user.id||data.channelId!==i.channelId)return i.reply({...card('確認を開き直してください','期限切れ、または別の人の確認画面です。','warning'),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
     if(action==='mechanism') {
       if(data.kind!=='gamble')throw new UserError('この操作はギャンブル専用です。');
-      await i.reply({...card('ギャンブルの仕組み',`**1. 賭け金の決定**\n- プラス残高は所持額の約1/3〜全額から抽選。\n- −100〜0ptは **100pt**。それより下は借金額の1/6〜1/2。\n\n**2. 倍率の抽選**\n- 85%: ±1.51〜3.00倍\n- 13%: ±3.01〜5.00倍\n- 2%: ±5.01〜10.00倍\n- 正負は各50%。\n\n**3. ポイント変動**\n\`賭け金 × 倍率（小数部分を0方向に切り捨て） − 賭け金\`\n-# 借金中は回数無制限。プラス残高は毎日0時（日本時間）に5回へリセット。`),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});return;
+      await i.reply({...card('ギャンブルの仕組み',`**1. 賭け金の決定**\n- プラス残高は所持額の約1/3〜全額から抽選。\n- 借金中は借金額の **5〜10%** から抽選（端数切り捨て・最低100pt）。\n- 残高0ptの場合は **100pt**。\n\n**2. 倍率の抽選**\n- 85%: ±1.51〜3.00倍\n- 13%: ±3.01〜5.00倍\n- 2%: ±5.01〜10.00倍\n- 正負は各50%。\n\n**3. ポイント変動**\n\`賭け金 × 倍率（小数部分を0方向に切り捨て） − 賭け金\`\n-# 借金中は回数無制限。プラス残高は毎日0時（日本時間）に5回へリセット。`),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});return;
     }
     if(action!=='cancel'&&action!=='confirm')throw new UserError('操作が見つかりません。');
     this.confirms.delete(key!);await i.deferUpdate();
