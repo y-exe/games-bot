@@ -7,17 +7,18 @@ import {bugReportRow} from './bug-report.js';
 let publicChannels:ReadonlySet<string>=new Set();
 export function setErrorChannels(set:ReadonlySet<string>) {publicChannels=set;}
 export function isPublicChannel(channelId:string) {return publicChannels.has(channelId);}
-export function exceptionCards(error:unknown,operation:string) {
+export function exceptionCards(error:unknown,operation:string,interactionInfo='') {
   const report=errorReport(error,operation);
   const occurredAt=new Date();
   const reportRows=()=>[bugReportRow(operation,report.friendly?undefined:report.id,occurredAt)];
-  const unavailable=report.code==='10062';
-  const diagnostic=card(unavailable?'操作の受付期限切れ':'処理エラー · 調査情報',`**エラーID** · \`${report.id}\`\n**処理** · \`${report.context}\`\n**種類** · \`${report.name}\`${report.code?`\n**エラーコード** · \`${report.code}\``:''}${report.status?`\n**HTTPステータス** · \`${report.status}\``:''}\n**発生時刻** · <t:${Math.floor(occurredAt.getTime()/1000)}:F>${unavailable?'\nDiscordが操作を期限切れ、または無効として扱ったため、応答できませんでした。':''}`,unavailable?'warning':'danger',[bugReportRow(operation,report.id,occurredAt)]);
+  const unavailable=['10062','10015','50027'].includes(report.code??'');
+  const diagnostic=card(unavailable?'操作の応答期限切れ':'処理エラー · 調査情報',`**エラーID** · \`${report.id}\`\n**処理** · \`${report.context}\`\n**種類** · \`${report.name}\`${report.code?`\n**エラーコード** · \`${report.code}\``:''}${report.status?`\n**HTTPステータス** · \`${report.status}\``:''}\n**発生時刻** · <t:${Math.floor(occurredAt.getTime()/1000)}:F>${interactionInfo?`\n${interactionInfo}`:''}${unavailable?report.code==='10062'?'\nDiscordが操作を期限切れ、または無効として扱ったため、応答できませんでした。':'\n返信用トークン、または返信先のWebhookが無効になったため、応答できませんでした。':''}`,unavailable?'warning':'danger',[bugReportRow(operation,report.id,occurredAt)]);
   return {response:card(report.friendly?'操作を確認してください':'処理エラー',report.body,report.friendly?'warning':'danger',reportRows()),diagnostic,unavailable};
 }
 export function exceptionCard(error:unknown,operation:string) {return exceptionCards(error,operation).response;}
 export async function replyWithError(i:Interaction,error:unknown) {
-  const failure=exceptionCards(error,i.isChatInputCommand()?`/${i.commandName}`:'customId' in i?i.customId:'interaction'),payload=failure.response;
+  const info=Number.isFinite(i.createdTimestamp)?`**操作からの経過** · ${Math.max(0,Date.now()-i.createdTimestamp).toLocaleString('ja-JP')}ms\n**受付状態** · ${i.isRepliable()&&(i.deferred||i.replied)?'受付済み':'未受付'}`:'';
+  const failure=exceptionCards(error,i.isChatInputCommand()?`/${i.commandName}`:'customId' in i?i.customId:'interaction',info),payload=failure.response;
   if(!(error instanceof UserError))postErrorLog(failure.diagnostic);
   if(failure.unavailable)return;
   if(!i.isRepliable())return;

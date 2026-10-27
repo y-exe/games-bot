@@ -9,7 +9,43 @@ import {Economy} from '../src/commands/economy.ts';
 import {rankingExportResponse} from '../src/ui/rankings.ts';
 import {resolveRankingUsers} from '../src/services/ranking-users.ts';
 
-const json=value=>JSON.parse(JSON.stringify(value));
+test('名前取得が停止しても制限時間内で一覧を返し、取得済みの名前は途中保存する',async()=>{
+  const saved=[],calls=[];
+  let release;
+  const blocked=new Promise(resolve=>{release=resolve;});
+  const client={users:{cache:new Map(),fetch:async id=>{
+    calls.push(id);
+    if(Number(id)>25)await blocked;
+    return {username:`user${id}`,globalName:`名前${id}`};
+  }}};
+  const store={rankingUsers:async()=>[],saveRankingUsers:async users=>{saved.push(...users);}};
+  const result=await resolveRankingUsers(Array.from({length:100},(_,i)=>String(i+1)),client,null,store,Date.now(),40);
+  assert.equal(result.size,25);assert.equal(saved.length,25);
+  assert.ok(calls.length<=29);
+  release();await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(result.size,25);assert.equal(saved.length,25);assert.ok(calls.length<=29);
+});
+
+test('公開確認はBotのメッセージ編集を使い、受付失敗では確認とポイントを残す',async()=>{
+  const economy=new Economy({},()=> 'bot');
+  try {
+    const data={owner:'owner',kind:'gamble',expires:Date.now()+60_000,channelId:'channel'};
+    economy.confirms.set('key',data);
+    let edits=0;
+    const i={customId:'eco:cancel:key',user:{id:'owner'},channelId:'channel',
+      deferUpdate:async()=>{throw Object.assign(new Error('Unknown interaction'),{code:10062});},
+      message:{flags:{has:()=>false},edit:async()=>{edits++;}},
+      editReply:async()=>{throw new Error('期限付きWebhookは使用しない');},
+    };
+    await assert.rejects(economy.handle(i),/Unknown interaction/);
+    assert.equal(economy.confirms.get('key'),data);assert.equal(edits,0);
+    i.deferUpdate=async()=>{};
+    await economy.handle(i);assert.equal(edits,1);assert.equal(economy.confirms.has('key'),false);
+    economy.confirms.set('key',data);i.message.flags.has=()=>true;
+    i.editReply=async()=>{edits++;};
+    await economy.handle(i);assert.equal(edits,2);
+  }finally{economy.close();}
+});
 
 test('一覧取得はポイント順の上位1000人だけを返し、同点順・Bot除外を守る',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'games-bot-rankings-')),store=new Store('',dir);

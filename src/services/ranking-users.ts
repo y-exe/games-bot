@@ -4,7 +4,7 @@ import type {RankingUserRecord} from '../data/rankings.js';
 
 export interface RankingUser {displayName:string;username:string}
 
-export async function resolveRankingUsers(ids:Iterable<string>,client?:Pick<Client,'users'>,guild?:Pick<Guild,'members'>|null,store?:Pick<Store,'rankingUsers'|'saveRankingUsers'>,now=Date.now()) {
+export async function resolveRankingUsers(ids:Iterable<string>,client?:Pick<Client,'users'>,guild?:Pick<Guild,'members'>|null,store?:Pick<Store,'rankingUsers'|'saveRankingUsers'>,now=Date.now(),budgetMs=120_000) {
   const profiles=new Map<string,RankingUser>();
   const unique=[...new Set(ids)];
   const stored=new Map((await store?.rankingUsers(unique)??[]).map(user=>[user.user_id,user]));
@@ -30,15 +30,22 @@ export async function resolveRankingUsers(ids:Iterable<string>,client?:Pick<Clie
     if(user)update(id,user);
     else missing.push(id);
   }
-  let next=0,failed=0;
-  if(client)await Promise.all(Array.from({length:Math.min(4,missing.length)},async()=>{
-    while(next<missing.length) {
+  const flush=async()=>{const batch=updates.splice(0);if(batch.length)await store?.saveRankingUsers(batch);};
+  await flush();
+  let next=0,failed=0,stopped=false;
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  const deadline=new Promise<void>(resolve=>{timer=setTimeout(()=>{stopped=true;resolve();},budgetMs);});
+  const workers=client?Promise.all(Array.from({length:Math.min(4,missing.length)},async()=>{
+    while(!stopped&&next<missing.length) {
       const id=missing[next++]!;
-      try {update(id,await client.users.fetch(id,{force:true}));}
+      try {const user=await client.users.fetch(id,{force:true});if(stopped)return;update(id,user);}
       catch {failed++;}
+      if(updates.length>=20)await flush();
     }
-  }));
-  if(updates.length)await store?.saveRankingUsers(updates);
+  })):Promise.resolve();
+  try {await Promise.race([workers,deadline]);}
+  finally {stopped=true;clearTimeout(timer);}
+  await flush();
   if(failed)console.warn(`ランキングのユーザー情報を${failed}件取得できませんでした。`);
   return profiles;
 }

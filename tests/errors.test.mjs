@@ -46,7 +46,8 @@ test('期限切れのinteractionへ再返信して二次エラーを起こさず
   try {
     let replies=0;
     const expired={customId:'again:gamble:owner',isChatInputCommand:()=>false,isRepliable:()=>true,reply:async()=>{replies++;},followUp:async()=>{replies++;},editReply:async()=>{replies++;}};
-    await replyWithError(expired,Object.assign(new Error('Unknown interaction'),{code:10062}));assert.equal(replies,0);
+    for(const code of [10062,10015,50027])await replyWithError(expired,Object.assign(new Error('Expired response'),{code}));
+    assert.equal(replies,0);
     await replyWithError({...expired,deferred:true,ephemeral:true,editReply:async()=>{replies++;}},new UserError('このボタンは期限切れです。'));
     assert.equal(replies,1);
   } finally {console.error=originalLog;settings.errorLogChannelId=originalChannel;}

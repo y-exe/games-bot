@@ -25,6 +25,7 @@ function previewParts(text:string) {
 }
 export function rankingExportResponse(ranks:RankingEntry[],resolveUser:(id:string)=>RankingUser|undefined=()=>undefined,now=new Date()) {
   ranks=ranks.slice(0,rankingLimit);
+  const unnamed=ranks.filter(entry=>!resolveUser(entry.user_id)).length;
   const timestamp=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',dateStyle:'short',timeStyle:'medium'}).format(now);
   const list=(entries:RankingEntry[])=>entries.map((entry,index)=>{
     const user=resolveUser(entry.user_id);
@@ -39,6 +40,6 @@ export function rankingExportResponse(ranks:RankingEntry[],resolveUser:(id:strin
   for(let start=0;start<files.length;start+=10)messages.push({
     files:files.slice(start,start+10),allowedMentions:noMentions,
   });
-  const summary=card('ゲームポイント · ランキング一覧',`**上位 ${formatAmount(ranks.length)}人**\n下の添付ファイルを、Discord内のプレビューで読めます。\n-# ポイントの多い順に最大1,000人 · 取得時点の順位・残高です。${parts.length>1?`\n-# 長い一覧は${parts.length}ファイルに分けています。`:''}`,'info',[],undefined,undefined,undefined,0xf1c40f);
+  const summary=card('ゲームポイント · ランキング一覧',`**上位 ${formatAmount(ranks.length)}人**\n下の添付ファイルを、Discord内のプレビューで読めます。${unnamed?`\n-# 名前を取得できなかった${unnamed}人はID表示です。取得済みの名前は保存され、一覧を開き直すと続きから取得します。`:''}\n-# ポイントの多い順に最大1,000人 · 取得時点の順位・残高です。${parts.length>1?`\n-# 長い一覧は${parts.length}ファイルに分けています。`:''}`,'info',[],undefined,undefined,undefined,0xf1c40f);
   return {summary,attachments:messages};
 }

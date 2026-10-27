@@ -130,8 +130,8 @@ export class Economy {
     const message=await ctx.send(card(name==='give'?'送金を確認':'ハイリスクギャンブル',body,'warning',[row(button(`eco:confirm:${key}`,name==='give'?'送金する':'実行する',ButtonStyle.Danger),button(`eco:cancel:${key}`,'キャンセル',ButtonStyle.Secondary),...(name==='gamble'?[button(`eco:mechanism:${key}`,'仕組み',ButtonStyle.Secondary,'⚙️')]:[]))], '確認は60秒以内'));
     data.message=message;return message;
   }
-  private async edit(i:ButtonInteraction,payload:ReturnType<typeof card>) {
-    const message=await i.editReply(payload);
+  private async edit(i:ButtonInteraction,payload:ReturnType<typeof card>,update=false) {
+    const message=await (update&&!i.message.flags.has(MessageFlags.Ephemeral)?i.message.edit(payload):i.editReply(payload));
     if(message)trackInteractionButtons(i,message);
     return message;
   }
@@ -167,7 +167,8 @@ export class Economy {
     if(action==='details') {
       const details=this.details.get(key!);
       if(!details||details.expires<Date.now()||details.channelId!==i.channelId)throw new UserError('この結果の詳細は期限切れです。新しくギャンブルを実行してください。');
-      await i.reply({...card('ギャンブルの仕組み',details.body,'info',[],undefined,undefined,undefined,0x5865f2),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});return;
+      await i.deferReply({flags:MessageFlags.Ephemeral});
+      await this.edit(i,card('ギャンブルの仕組み',details.body,'info',[],undefined,undefined,undefined,0x5865f2));return;
     }
     const data=this.confirms.get(key!);
     if(!data||data.expires<Date.now()||data.owner!==i.user.id||data.channelId!==i.channelId)return i.reply({...card('確認を開き直してください','期限切れ、または別の人の確認画面です。','warning'),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
@@ -176,21 +177,23 @@ export class Economy {
       await i.reply({...card('ギャンブルの仕組み',`**1. 賭け金の決定**\n- プラス残高は所持額の約1/3〜全額から抽選。\n- 借金中は借金額の **5〜約10.89%** から抽選（端数切り捨て・最低100pt）。\n- 残高0ptの場合は **100pt**。\n\n**2. 倍率の抽選**\n- 85%: ±1.51〜3.00倍\n- 13%: ±3.01〜5.00倍\n- 2%: ±5.01〜10.00倍\n- 正負は各50%。\n\n**3. ポイント変動**\n\`賭け金 × 倍率（小数部分を0方向に切り捨て） − 賭け金\`\n-# 借金中は回数無制限。プラス残高は毎日0時（日本時間）に5回へリセット。`),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});return;
     }
     if(action!=='cancel'&&action!=='confirm')throw new UserError('操作が見つかりません。');
-    this.confirms.delete(key!);await i.deferUpdate();
-    if(action==='cancel')return this.edit(i,card('キャンセルしました','ポイントは変動していません。'));
+    await i.deferUpdate();
+    if(this.confirms.get(key!)!==data)throw new UserError('すでに処理済みです。');
+    this.confirms.delete(key!);
+    if(action==='cancel')return this.edit(i,card('キャンセルしました','ポイントは変動していません。'),true);
     let result;
     try { result=await this.confirm(data,key!); }
     catch(e) {
       if(!(e instanceof UserError)) {
         const failure=exceptionCards(e,`economy:${data.kind}`),detail=failure.response;
         postErrorLog(failure.diagnostic as Record<string,unknown>);
-        if(isPublicChannel(i.channelId))return this.edit(i,detail);
-        await this.edit(i,card('処理エラー','**処理を完了できませんでした。**\n詳細は本人向けの返信を確認してください。','danger'));
+        if(isPublicChannel(i.channelId))return this.edit(i,detail,true);
+        await this.edit(i,card('処理エラー','**処理を完了できませんでした。**\n詳細は本人向けの返信を確認してください。','danger'),true);
         return i.followUp({...detail,flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
       }
-      return this.edit(i,card('実行できませんでした',`${e.message}\n\nコマンドを実行して、最新の残高から確認し直してください。`,'warning'));
+      return this.edit(i,card('実行できませんでした',`${e.message}\n\nコマンドを実行して、最新の残高から確認し直してください。`,'warning'),true);
     }
-    const response=await this.edit(i,result);
+    const response=await this.edit(i,result,true);
     return response;
   }
   private async confirm(data:Confirm,key:string) {
