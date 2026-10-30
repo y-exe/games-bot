@@ -20,6 +20,9 @@ scripts/*
 !scripts/build-minesweeper-emojis.ts
 !scripts/generate-minesweeper-svg.mjs
 !scripts/fetch-character-emojis.ts
+!scripts/build-text5-gradient.ts
+!scripts/build-text-emojis.ts
+!scripts/fetch-text-fonts.ts
 !scripts/lib/
 scripts/lib/*
 !scripts/lib/fit-svg-icon.mjs

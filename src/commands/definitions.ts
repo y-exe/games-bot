@@ -15,7 +15,9 @@ export const commands = [
   basic('bet','サイコロでポイントを賭ける').addStringOption(o=>o.setName('amount').setDescription('賭け金').setRequired(true).setAutocomplete(true)),
   basic('gamble','ハイリスクギャンブルの確認を開く'),
   basic('give','手数料15%でポイントを送金する').addUserOption(o=>o.setName('user').setDescription('送金先').setRequired(true)).addStringOption(o=>o.setName('amount').setDescription('送金額').setRequired(true).setAutocomplete(true)),
-  ...['text','text2','text3','text4','text5'].map((name,i)=>basic(name,['黄色の縁取り文字画像','青色の縁取り文字画像','赤色の明朝体文字画像','変形した文字スタンプ','虹色の文字スタンプ'][i]!).addStringOption(o=>o.setName('text').setDescription('画像にする文字（コンマで改行）').setRequired(true).setMaxLength(200)).addBooleanOption(o=>o.setName('square').setDescription('正方形スタンプにする'))),
+  basic('text','文字画像の種類を選んで生成する').addStringOption(o=>o.setName('text').setDescription('画像にする文字').setMaxLength(200)),
+  basic('textc','文字画像をカスタム・テンプレートを保存する').addStringOption(o=>o.setName('text').setDescription('画像にする文字、またはスタイルコード・旧ID').setMaxLength(4000)),
+  ...['text1','text2','text3','text4','text5'].map((name,i)=>basic(name,['黄色の縁取り文字画像','青色の縁取り文字画像','赤色の明朝体文字画像','変形した文字スタンプ','虹色の文字スタンプ'][i]!).addStringOption(o=>o.setName('text').setDescription('画像にする文字（コンマで改行）').setRequired(true).setMaxLength(200)).addBooleanOption(o=>o.setName('square').setDescription('正方形スタンプにする'))),
   ...['watermark','gaming'].map(name=>basic(name,name==='gaming'?'画像を七色に光るGIFにする':'画像に端末などのテンプレートを合成する').addAttachmentOption(o=>o.setName('image').setDescription('加工する画像').setRequired(true))),
   basic('5000','5000兆円欲しい風の文字画像').addStringOption(o=>o.setName('top').setDescription('上の文字').setRequired(true)).addStringOption(o=>o.setName('bottom').setDescription('下の文字').setRequired(true)).addBooleanOption(o=>o.setName('hoshii').setDescription('欲しい！を追加する')).addBooleanOption(o=>o.setName('rainbow').setDescription('虹色にする')),
   basic('voice','VOICEVOX読み上げ・やまかわボイチェン').addStringOption(o=>o.setName('text').setDescription('読み上げるテキスト').setMaxLength(200)).addAttachmentOption(o=>o.setName('audio').setDescription('変換する45秒以内の音声')).addBooleanOption(o=>o.setName('convert').setDescription('やまかわボイチェンを使う（既定: 有効）')),
@@ -40,5 +42,5 @@ export const aliases: Record<string,string> = {
   cf:'connectfour',四目並べ:'connectfour',オセロ:'othello',じゃんけん:'janken',ジャンケン:'janken',hl:'highlow',ハイロー:'highlow',
   points:'point',ポイント:'point',bonus:'login',daily:'login',ログイン:'login',ログボ:'login',pay:'give',送金:'give',ギャンブル:'gamble',賭け:'bet',かけ:'bet',ベッド:'bet',べっど:'bet',
   退出:'leave',たいしゅつ:'leave',レート:'rate',れーと:'rate',為替:'rate',天気:'tenki',てんき:'tenki',突然の死:'totusi',とつし:'totusi',突死:'totusi',詳細:'info',いんふぉ:'info',時間:'time',たいむ:'time',タイム:'time',じかん:'time',ピング:'ping',接続速度:'ping',ぴんぐ:'ping',
-  テキスト:'text',テキスト2:'text2',テキスト3:'text3',テキスト4:'text4',テキスト5:'text5',ウォーターマーク:'watermark',うぉーたーまーく:'watermark',ゲーミング:'gaming',げーみんぐ:'gaming',ボイス:'voice',ぼいす:'voice',ボイチェン:'voice','5000兆円':'5000',
+  テキスト:'text',テキスト1:'text1',テキスト2:'text2',テキスト3:'text3',テキスト4:'text4',テキスト5:'text5',テキストカスタム:'textc',ウォーターマーク:'watermark',うぉーたーまーく:'watermark',ゲーミング:'gaming',げーみんぐ:'gaming',ボイス:'voice',ぼいす:'voice',ボイチェン:'voice','5000兆円':'5000',
 };

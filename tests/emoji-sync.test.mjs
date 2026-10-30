@@ -36,34 +36,34 @@ function startupRest(api) {
   };
 }
 
-test('空のBotの初回起動で全315種類を登録し、対応表保存後の再起動ではすべて再利用する',async()=>temporary(async dir=>{
+test('空のBotの初回起動で全320種類を登録し、対応表保存後の再起動ではすべて再利用する',async()=>temporary(async dir=>{
   const assets=await loadAllEmojiAssets(),api=fakeApi(),rest=startupRest(api);
-  assert.equal(assets.length,315);assert.equal(new Set(assets.map(a=>a.name)).size,315);
+  assert.equal(assets.length,320);assert.equal(new Set(assets.map(a=>a.name)).size,320);
   const first=await syncBotEmojis(rest,'test-app',dir);
-  assert.equal(first.created,315);
+  assert.equal(first.created,320);
   assert.deepEqual(Object.keys(first.mappings).sort(),assets.map(a=>a.name).sort());
   const saved=JSON.parse(await readFile(join(dir,'emojis.json'),'utf8'));
   assert.deepEqual(saved,first.mappings);
   const ids=api.items.map(e=>e.id);
   const next=await syncBotEmojis(rest,'test-app',dir);
-  assert.equal(next.created,0);assert.equal(next.reused,315);
+  assert.equal(next.created,0);assert.equal(next.reused,320);
   assert.deepEqual(api.items.map(e=>e.id),ids);assert.deepEqual(api.calls.removed,[]);
 }));
 
 test('素材追加後の最初の起動で青・赤・緑・チェス・マインスイーパーの不足分だけ登録する',async()=>temporary(async dir=>{
   const assets=await loadAllEmojiAssets(),api=fakeApi();
-  const added=new Set(['b_Z','g_Z','r_Z','board_spacer','c_bk_1_c','ms_w_d']);
+  const added=new Set(['b_Z','g_Z','r_Z','board_spacer','c_bk_1_c','ms_w_d','text1','text2','text3','text4','text5']);
   const before=await syncEmojiAssets(api,'test-app',dir,assets.filter(a=>!added.has(a.name)));
   const first=await syncBotEmojis(startupRest(api),'test-app',dir);
   assert.equal(first.created,added.size);assert.equal(first.reused,assets.length-added.size);
   for(const [name,value]of Object.entries(before.mappings))assert.equal(first.mappings[name],value);
   for(const name of added)assert.ok(first.mappings[name],name);
   assert.equal((await syncBotEmojis(startupRest(api),'test-app',dir)).created,0);
-  assert.equal(new Set(api.items.map(e=>e.name)).size,315);assert.deepEqual(api.calls.removed,[]);
+  assert.equal(new Set(api.items.map(e=>e.name)).size,320);assert.deepEqual(api.calls.removed,[]);
 }));
 
 test('全絵文字が128pxで、SVGまたは公式形式の原本を持ち、偽のSVGを使わない',async()=>{
-  const assets=await loadEmojiAssets();assert.equal(assets.length,131);assert.equal(badgeManifest.length,84);
+  const assets=await loadEmojiAssets();assert.equal(assets.length,136);assert.equal(badgeManifest.length,84);
   for(const asset of assets){
     const metadata=await sharp(asset.image).metadata();
     assert.equal(metadata.width,128,asset.name);assert.equal(metadata.height,128,asset.name);assert.equal(metadata.format,'png');

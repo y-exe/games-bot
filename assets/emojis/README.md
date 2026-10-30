@@ -1,6 +1,6 @@
 # Botの絵文字素材
 
-共通47・バッジ84・チェス82・マインスイーパー29・盤面共通73の計315種類です。初回起動ですべて登録し、追加・変更後の起動で差分を同期します。登録IDは `DATA_DIR/emojis.json`、画像の更新情報は `DATA_DIR/emoji-sync.json` に保存します。
+共通47・バッジ84・チェス82・マインスイーパー29・盤面共通73・文字画像5の計320種類です。初回起動ですべて登録し、追加・変更後の起動で差分を同期します。登録IDは `DATA_DIR/emojis.json`、画像の更新情報は `DATA_DIR/emoji-sync.json` に保存します。
 
 ## 配置
 
@@ -10,7 +10,7 @@
 | `svg/games/` | オセロ・四目並べ・マインスイーパー |
 | `svg/status/` | ステータス |
 | `svg/badges/` | SVGで配信されているバッジ |
-| `originals/` | バッジ・ステータスのPNG原本 |
+| `originals/` | バッジ・ステータス・文字画像のPNG原本 |
 | `png/` | Discord登録用128px PNG。用途ごとに分類 |
 | `../../src/ui/chess-emojis.ts` | チェスのSVG・PNG生成 |
 
@@ -27,6 +27,8 @@
 | マインスイーパーのSVG | `bun --no-env-file scripts/generate-minesweeper-svg.mjs` |
 | マインスイーパーのPNG | `bun --no-env-file scripts/build-minesweeper-emojis.ts` |
 | 青い英字の再取得 | `bun --no-env-file scripts/fetch-character-emojis.ts` |
+| text1〜text5の文字絵文字 | `bun --no-env-file scripts/build-text-emojis.ts` |
+| text5の塗り | `bun --no-env-file scripts/build-text5-gradient.ts` |
 
 チェスは起動時に生成します。同期対象は `src/ui/emoji-assets.ts` に集約しています。共通・バッジはマニフェスト、ゲーム素材は各ゲームの定義一覧で管理します。
 

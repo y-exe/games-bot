@@ -22,7 +22,7 @@ export const promptSpecs:Record<string,PromptSpec>={
   voice:{title:'音声の用意',example:'voice こんにちは',body:'**読み上げる文字** か **音声ファイル** のどちらかをフォームで送ります。\n-# 両方入れると音声ファイルを優先します。45秒以内 · 10MB以下。\n-# 対応形式: wav・mp3・flac・m4a・ogg',
     fields:[text('text','読み上げる文字（任意）',{placeholder:'空欄なら音声ファイルだけを変換します',maxLength:200}),
       {kind:'file',id:'audio',label:'音声ファイル（任意）'}]},
-  text:{title:'文字画像の用意',example:'text やまかわ,かわいい',body:'画像にする文字をフォームで送ります。\n-# コンマ `,` で改行になります。',
+  text1:{title:'文字画像の用意',example:'text1 やまかわ,かわいい',body:'画像にする文字をフォームで送ります。\n-# コンマ `,` で改行になります。',
     fields:[text('text','画像にする文字',{required:true,placeholder:'1行目,2行目,3行目'}),{kind:'checkbox',id:'square',label:'正方形スタンプにする'}]},
   text2:{title:'青文字の用意',example:'text2 やまかわ,かわいい',body:'画像にする文字をフォームで送ります。\n-# コンマ `,` で改行になります。',
     fields:[text('text','画像にする文字',{required:true,placeholder:'1行目,2行目,3行目'}),{kind:'checkbox',id:'square',label:'正方形スタンプにする'}]},
@@ -104,7 +104,7 @@ function selectedUser(i:ModalSubmitInteraction,id:string){return selectValue(i,i
 export function promptArgs(name:string,i:ModalSubmitInteraction):string[] {
   switch(name) {
     case 'voice':{const value=textValue(i,'text').trim();return value?[value]:[];}
-    case 'text':case 'text2':case 'text3':case 'text4':case 'text5':{
+    case 'text1':case 'text2':case 'text3':case 'text4':case 'text5':{
       const value=textValue(i,'text').trim();
       const stampOnly=name==='text4'||name==='text5';
       const square=stampOnly||checked(i,'square');

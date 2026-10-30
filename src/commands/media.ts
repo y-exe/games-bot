@@ -1,4 +1,5 @@
 import {UserError} from '../errors.js';
+import {textResultPayload} from '../ui/text-result.js';
 import { AttachmentBuilder } from 'discord.js';
 import { Context } from './context.js';
 import { card } from '../ui/cards.js';
@@ -60,8 +61,8 @@ export async function media(name:string,ctx:Context,worker:MediaWorker,audioProc
     else bytes=await worker.run({kind:name,bytes:source});
   }
   const filename=name==='gaming'?`gaming_${originalName}.gif`:name==='watermark'?`wm_${originalName}.png`:'image.png';
-  const styles:Record<string,{title:string;color:number}>={text:{title:'やまかわサムネ風テキスト',color:0xfee75c},text2:{title:'やまかわ青文字テキスト',color:0x3498db},text3:{title:'やまかわ赤文字テキスト',color:0xc30203},text4:{title:'テキスト4 (変形)',color:0x3498db},text5:{title:'テキスト5 (虹色)',color:0x3498db},gaming:{title:'ゲーミングGIF生成完了',color:0x9b59b6},watermark:{title:'ウォーターマーク加工完了',color:0x3498db}};
+  if(name.startsWith('text'))return ctx.send(textResultPayload(name,inputText,bytes));
+  const styles:Record<string,{title:string;color:number}>={gaming:{title:'ゲーミングGIF生成完了',color:0x9b59b6},watermark:{title:'ウォーターマーク加工完了',color:0x3498db}};
   const style=styles[name]!;
-  const echo=inputText.trim()?`**文字** · ${inputText.trim().replaceAll('`','´').replaceAll('\n',' / ').slice(0,60)}\n`:'';
-  return ctx.send({...card(style.title,name.startsWith('text')?`${echo}${['text4','text5'].includes(name)?'-# スタンプ専用 · 500 × 500px':'-# 改行はコンマ `,` · 正方形スタンプは `square` を指定'}`:template?`**使用テンプレート** · \`${template}\`${resized?'\n-# ファイルサイズに合わせて縮小しました。':''}`:'-# カラー画像を添付すると色の変化が分かりやすくなります。','success',[],undefined,`attachment://${filename}`,undefined,style.color),files:[new AttachmentBuilder(bytes,{name:filename})]});
+  return ctx.send({...card(style.title,template?`**使用テンプレート** · \`${template}\`${resized?'\n-# ファイルサイズに合わせて縮小しました。':''}`:'-# カラー画像を添付すると色の変化が分かりやすくなります。','success',[],undefined,`attachment://${filename}`,undefined,style.color),files:[new AttachmentBuilder(bytes,{name:filename})]});
 }

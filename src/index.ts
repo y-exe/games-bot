@@ -11,6 +11,8 @@ import { Store } from './data/store.js';
 import { Games, type GameKind } from './games/manager.js';
 import { Economy } from './commands/economy.js';
 import { Editor } from './commands/editor.js';
+import {TextStudio} from './commands/text-studio.js';
+import {TextTemplates} from './data/text-templates.js';
 import { Context, positiveAmount } from './commands/context.js';
 import { commandNames } from './commands/definitions.js';
 import {parseLegacy} from './commands/legacy.js';
@@ -32,7 +34,8 @@ const store=new Store();
 try{await store.initialize();}catch(error){const report=errorReport(error,'database startup');await store.close();throw new UserError(`データベースの初期化に失敗しました。エラーID: ${report.id}`);}
 loadEmojis();const allowed=await store.allowedChannels();setErrorChannels(allowed);
 const games=new Games(client,store);const economy=new Economy(store,()=>client.user!.id);const editor=new Editor(client);const worker=new MediaWorker();
-const gameNames=new Set(['othello','connectfour','janken','highlow','chess','minesweeper']);const economyNames=new Set(['point','login','give','bet','gamble']);const mediaNames=new Set(['text','text2','text3','text4','text5','watermark','gaming','5000','voice']);
+const textStudio=new TextStudio(new TextTemplates(store),worker);
+const gameNames=new Set(['othello','connectfour','janken','highlow','chess','minesweeper']);const economyNames=new Set(['point','login','give','bet','gamble']);const mediaNames=new Set(['text1','text2','text3','text4','text5','watermark','gaming','5000','voice']);
 const cooldowns=new CommandCooldowns();
 async function execute(name:string,ctx:Context) {
   if(!ctx.guild)return;
@@ -40,7 +43,7 @@ async function execute(name:string,ctx:Context) {
   if(!await authorizeChannel(name,ctx,allowed))return;
   cooldowns.take(ctx.user.id,name);
   if(!ctx.slash&&needsPrompt(name,ctx))return ctx.send(promptCard(name));
-  if(name==='imakita')ctx.makePrivate();
+  if(name==='imakita'||name==='textc'&&ctx.slash)ctx.makePrivate();
   await ctx.prepare(name==='embed'||name==='leave'||name==='imakita'||name==='sync');
   if(gameNames.has(name)) {
     const target=name==='minesweeper'?undefined:await ctx.target('opponent',name==='highlow'?1:0);if(target?.bot&&target.id!==client.user!.id)throw new UserError('他のBotを対戦相手に指定できません。');
@@ -51,6 +54,7 @@ async function execute(name:string,ctx:Context) {
     const message=await ctx.send(await games.leave(ctx.user.id));games.trackLeave(message.id,p=>ctx.send(p));return message;
   }
   if(economyNames.has(name))return economy.run(name,ctx);
+  if(name==='text'||name==='textc')return textStudio.open(ctx,name==='textc');
   if(mediaNames.has(name))return media(name,ctx,worker);
   if(name==='embed')return editor.open(ctx);
   return utility(name,ctx,store,allowed);
@@ -78,6 +82,10 @@ async function interaction(i:Interaction) {
         throw new UserError(`このカードのボタンは <t:${Math.floor(disabledAt/1000)}:R> に無効になりました。\n-# もう一度コマンドを実行してください。`);
       }
       if(i.customId.startsWith('game:'))await games.handle(i);
+      else if(i.customId.startsWith('txt:')) {
+        if(!allowed.has(i.channelId))throw new UserError('このチャンネルではBot利用が停止されています。');
+        await textStudio.handle(i);
+      }
       else if(i.isButton()&&i.customId.startsWith('replay:'))await games.replay(i);
       else if(i.isButton()&&i.customId.startsWith('eco:'))await economy.handle(i);
       else if(i.isButton()&&i.customId.startsWith('help:'))await handleHelp(i);
@@ -93,6 +101,10 @@ async function interaction(i:Interaction) {
       else if(i.isButton()&&i.customId.startsWith('prompt:'))await openPrompt(i);
       else throw new UserError('この操作は期限切れです。コマンドを開き直してください。');
     } else if(i.isModalSubmit()&&i.customId.startsWith('prompt:'))await handlePromptSubmit(i,{client,allowed,execute});
+    else if(i.isModalSubmit()&&i.customId.startsWith('txt:')) {
+      if(!allowed.has(i.channelId??''))throw new UserError('このチャンネルではBot利用が停止されています。');
+      await textStudio.handle(i);
+    }
     else if(i.isModalSubmit()&&i.customId.startsWith('editor:'))await editor.handle(i);
   }catch(e){
     try {await replyWithError(i,e);}

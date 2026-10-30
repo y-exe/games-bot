@@ -8,6 +8,7 @@ import {loginReward,loginDay,jstDate,nextLoginTime} from './login.js';
 import {transferFee} from './money.js';
 import {rankingLimit,type RankingEntry,type RankingUserRecord} from './rankings.js';
 import {dailyWealthTax,wealthTaxThreshold} from './wealth-tax.js';
+import {TextTemplates,textTemplateSchema} from './text-templates.js';
 export {jstDate} from './login.js';
 
 type RecordRow = Record<string, unknown>;
@@ -23,12 +24,10 @@ CREATE TABLE IF NOT EXISTS games_bot_events(event_id text PRIMARY KEY, created_a
 CREATE TABLE IF NOT EXISTS games_bot_sessions(session_id text PRIMARY KEY, payload text NOT NULL);
 CREATE TABLE IF NOT EXISTS games_bot_user_profiles(user_id numeric(20,0) PRIMARY KEY, display_name text NOT NULL, username text NOT NULL, fetched_at text NOT NULL);
 CREATE TABLE IF NOT EXISTS games_bot_tax_exemptions(user_id numeric(20,0) NOT NULL, tax_date date NOT NULL, PRIMARY KEY(user_id,tax_date));
+${textTemplateSchema}
 `;
 function dateString(value: unknown): string | null { return value instanceof Date ? value.toISOString().slice(0,10) : value ? String(value).slice(0,10) : null; }
-// vps側の運用要件: PostgreSQLは全TCP接続でTLSを強制(hostssl)し、自己署名証明書を使う。
-// pg v8は素の`sslmode=require`をverify-full扱いして自己署名で失敗するため、
-// 本番のTCP接続では`?sslmode=require&uselibpqcompat=true`が必須。
-// DATABASE_URLに欠けていればここで補い、原因不明のエラーID化を防ぐ。
+// 本番DBはTLS必須・自己署名証明書のため、pg v8ではrequireとuselibpqcompatを併用する。
 export function normalizeDatabaseUrl(url: string, production = settings.production): string {
   if (!url || !production) return url;
   let parsed: URL;
@@ -73,6 +72,7 @@ export class Store {
     }
     await this.transaction(c=>c.query(`INSERT INTO games_bot_tax_exemptions(user_id,tax_date)
       SELECT user_id,last_login+1 FROM games_bot_economy WHERE last_login IS NOT NULL ON CONFLICT DO NOTHING`));
+    await new TextTemplates(this).migrate();
   }
   private connection(client?: PoolClient): Connection {
     return { query: async <T extends RecordRow>(sql: string, params: unknown[] = []) => {

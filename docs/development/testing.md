@@ -9,7 +9,7 @@
 | `src/index.ts` | 起動・イベント受付・コマンド振り分け |
 | `src/commands/` | コマンド定義・入力・権限・クールダウン |
 | `src/games/` | ゲームのルール・状態管理・操作・Botの応手 |
-| `src/data/` | ポイント・DB・旧データの取り込み |
+| `src/data/` | ポイント・文字スタイル・テンプレート・DB |
 | `src/services/` | API・画像・音声・定期処理 |
 | `src/ui/` | Components v2のカード・絵文字・エラー表示 |
 | `tests/` | Bunで動く自動テスト |

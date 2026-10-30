@@ -315,5 +315,35 @@
     "animated": false,
     "sourceFile": "svg/characters/letters/b_Z.svg",
     "outputFile": "png/characters/letters/b_Z.png"
+  },
+  {
+    "name": "text1",
+    "animated": false,
+    "sourceFile": "originals/characters/text/text1.png",
+    "outputFile": "png/characters/text/text1.png"
+  },
+  {
+    "name": "text2",
+    "animated": false,
+    "sourceFile": "originals/characters/text/text2.png",
+    "outputFile": "png/characters/text/text2.png"
+  },
+  {
+    "name": "text3",
+    "animated": false,
+    "sourceFile": "originals/characters/text/text3.png",
+    "outputFile": "png/characters/text/text3.png"
+  },
+  {
+    "name": "text4",
+    "animated": false,
+    "sourceFile": "originals/characters/text/text4.png",
+    "outputFile": "png/characters/text/text4.png"
+  },
+  {
+    "name": "text5",
+    "animated": false,
+    "sourceFile": "originals/characters/text/text5.png",
+    "outputFile": "png/characters/text/text5.png"
   }
 ]

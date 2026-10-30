@@ -5,7 +5,7 @@ import {row} from './cards.js';
 const operations:Record<string,string>={
   game:'対戦の操作',replay:'もう一度対戦',eco:'ポイントの操作',help:'使い方の表示',
   time:'時計の切替',tenki:'天気の切替',rate:'為替の切替',summary:'会話要約の切替',
-  editor:'カードの編集',prompt:'入力フォーム',again:'コマンドの再実行',
+  editor:'カードの編集',txt:'文字画像の編集',prompt:'入力フォーム',again:'コマンドの再実行',
   'legacy command':'チャットのコマンド',interaction:'Botの操作',
 };
 
