@@ -33,6 +33,9 @@
     "typescript": "^5.9.3"
   },
   "packageManager": "bun@1.3.14",
+  "overrides": {
+    "undici": "6.29.1"
+  },
   "trustedDependencies": [
     "@napi-rs/canvas",
     "sharp"

@@ -14,6 +14,10 @@ export async function runProcess(executable:string,args:string[],options:{cwd?:s
     child.once('close',code=>{clearTimeout(timer);if(code===0)resolveResult(output);else {console.error(`音声処理終了コード: ${code}`);reject(new Error('音声を処理できませんでした。別の音声、または短い音声で再試行してください。'));}});
   });
 }
+const audioRestrictions=['-protocol_whitelist','file','-format_whitelist','wav,mp3,flac,mov,ogg'];
+export async function normalizeAudio(input:string,output:string) {
+  await runProcess(settings.ffmpeg,['-nostdin','-v','error',...audioRestrictions,'-i',input,'-map','0:a:0','-t','45','-ac','1','-ar','48000','-c:a','pcm_s16le',output]);
+}
 let running=false;
 export async function processAudio(source:Buffer,extension:string,convert:boolean) {
   if(running)throw new UserError('別の音声を処理中です。完了してから再試行してください。');
@@ -23,14 +27,16 @@ export async function processAudio(source:Buffer,extension:string,convert:boolea
   try{
     directory=await mkdtemp(join(tmpdir(),'games-bot-audio-'));
     const input=join(directory,`input.${extension}`);await writeFile(input,source);
-    const probe=await runProcess(settings.ffprobe,['-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',input]);const duration=Number(probe.trim());
+    const probe=await runProcess(settings.ffprobe,['-v','error',...audioRestrictions,'-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',input]);const duration=Number(probe.trim());
     if(!Number.isFinite(duration)||duration<=0||duration>45)throw new UserError('音声は45秒以内にしてください。');
     if(!convert)return {bytes:source,extension,duration};
+    const normalized=join(directory,'normalized.wav');
+    await normalizeAudio(input,normalized);
     try{if(isAbsolute(settings.rvcPython))await access(settings.rvcPython);await access(join(settings.rvcAssets,'ymkw.pth'));}catch{throw new UserError('ボイチェンの推論環境がまだ準備できていません。読み上げのみなら convert:false で使えます。');}
     const hubert=join(settings.rvcRoot,'assets','hubert');await mkdir(hubert,{recursive:true});
     try{await access(join(hubert,'hubert_base.pt'));}catch{await copyFile(join(settings.rvcAssets,'hubert_base.pt'),join(hubert,'hubert_base.pt'));}
     const output=join(directory,'output.wav');
-    await runProcess(settings.rvcPython,['tools/infer_cli.py','--device','cpu','--f0up_key','0','--input_path',input,'--opt_path',output,'--model_name','ymkw.pth'],{cwd:settings.rvcRoot,env:{...process.env,weight_root:settings.rvcAssets,OMP_NUM_THREADS:'1',MKL_NUM_THREADS:'1'},timeout:180_000});
+    await runProcess(settings.rvcPython,['tools/infer_cli.py','--device','cpu','--f0up_key','0','--input_path',normalized,'--opt_path',output,'--model_name','ymkw.pth'],{cwd:settings.rvcRoot,env:{...process.env,weight_root:settings.rvcAssets,OMP_NUM_THREADS:'1',MKL_NUM_THREADS:'1'},timeout:180_000});
     const bytes=await readFile(output);if(bytes.length>7_800_000)throw new UserError('変換後の音声が大きすぎます。');return {bytes,extension:'wav',duration};
   }finally{running=false;if(directory)await rm(directory,{recursive:true,force:true});}
 }

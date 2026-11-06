@@ -12,7 +12,7 @@ test('未設定チャンネルでも今北産業の要約と詳細を切り替�
 });
 
 test('要約ボタンの修正でゲーム・ポイント操作のチャンネル制限を解除しない', () => {
-  for (const id of ['replay:othello', 'eco:login:owner', 'again:bet:100']) {
+  for (const id of ['replay:othello', 'eco:login:owner', 'again:bet:100','editor:draft:publish','editor:draft:edit']) {
     assert.equal(channelAllowsComponent(id, 'channel', new Set()), false);
     assert.equal(channelAllowsComponent(id, 'channel', new Set(['channel'])), true);
   }

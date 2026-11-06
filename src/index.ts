@@ -13,6 +13,8 @@ import { Economy } from './commands/economy.js';
 import { Editor } from './commands/editor.js';
 import {TextStudio} from './commands/text-studio.js';
 import {TextTemplates} from './data/text-templates.js';
+import {rememberRankingUser} from './services/ranking-users.js';
+import {Operations} from './services/operations.js';
 import { Context, positiveAmount } from './commands/context.js';
 import { commandNames } from './commands/definitions.js';
 import {parseLegacy} from './commands/legacy.js';
@@ -37,11 +39,13 @@ const games=new Games(client,store);const economy=new Economy(store,()=>client.u
 const textStudio=new TextStudio(new TextTemplates(store),worker);
 const gameNames=new Set(['othello','connectfour','janken','highlow','chess','minesweeper']);const economyNames=new Set(['point','login','give','bet','gamble']);const mediaNames=new Set(['text1','text2','text3','text4','text5','watermark','gaming','5000','voice']);
 const cooldowns=new CommandCooldowns();
+const rememberUser=(user:Parameters<typeof rememberRankingUser>[1])=>void rememberRankingUser(store,user).catch(()=>console.error('ランキングのユーザー名を保存できませんでした。'));
 async function execute(name:string,ctx:Context) {
   if(!ctx.guild)return;
   if(!settings.production&&ctx.guild.id!==settings.guildId)return;
   if(!await authorizeChannel(name,ctx,allowed))return;
   cooldowns.take(ctx.user.id,name);
+  rememberUser(ctx.user);
   if(!ctx.slash&&needsPrompt(name,ctx))return ctx.send(promptCard(name));
   if(name==='imakita'||name==='textc'&&ctx.slash)ctx.makePrivate();
   await ctx.prepare(name==='embed'||name==='leave'||name==='imakita'||name==='sync');
@@ -68,6 +72,7 @@ async function interaction(i:Interaction) {
   }
   if(!i.inCachedGuild()||(!settings.production&&i.guildId!==settings.guildId))return;
   try {
+    if(!i.isChatInputCommand())rememberUser(i.user);
     if(i.isChatInputCommand())await execute(i.commandName,new Context(i,client));
     else if(i.isButton()||i.isStringSelectMenu()) {
       if(!channelAllowsComponent(i.customId,i.channelId,allowed))throw new UserError('このチャンネルではBot利用が**停止されています。**\n管理者が `setchannel` で再開できます。');
@@ -105,7 +110,10 @@ async function interaction(i:Interaction) {
       if(!allowed.has(i.channelId??''))throw new UserError('このチャンネルではBot利用が停止されています。');
       await textStudio.handle(i);
     }
-    else if(i.isModalSubmit()&&i.customId.startsWith('editor:'))await editor.handle(i);
+    else if(i.isModalSubmit()&&i.customId.startsWith('editor:')) {
+      if(!allowed.has(i.channelId??''))throw new UserError('このチャンネルではBot利用が停止されています。');
+      await editor.handle(i);
+    }
   }catch(e){
     try {await replyWithError(i,e);}
     catch {console.error('エラー通知を送信できませんでした。');}
@@ -130,10 +138,11 @@ client.once(Events.ClientReady,async ready=>{
   ready.user.setActivity('/help | games-bot by yexe',{type:ActivityType.Custom});
   await games.restore();stopTax=taxScheduler(store,()=>ready.user.id);await startButtonExpirySweep(ready,allowed);console.log(`READY ${ready.user.tag} · ${settings.production?'production':'local'} · ${commandNames.size} commands · allowed channels ${allowed.size}`);
 });
-client.on(Events.InteractionCreate,i=>void interaction(i));client.on(Events.MessageCreate,m=>void legacy(m));
+const operations=new Operations();
+client.on(Events.InteractionCreate,i=>void operations.run(()=>interaction(i)));client.on(Events.MessageCreate,m=>void operations.run(()=>legacy(m)));
 client.on(Events.Error,e=>console.error(`Discord接続: ${redact(e.message)}`));
 let stopping=false;
-async function stop(){if(stopping)return;stopping=true;stopTax?.();economy.close();await games.close();await worker.close();await stopButtonExpirySweep(client);client.destroy();await store.close();}
+async function stop(){if(stopping)return;stopping=true;stopTax?.();await operations.drain();economy.close();await games.close();await worker.close();await stopButtonExpirySweep(client);client.destroy();await store.close();}
 const fatal=(error:unknown,operation:string)=>{errorReport(error,operation);process.exitCode=1;void stop().catch(e=>console.error(redact(e instanceof Error?e.message:'終了処理失敗')));};
 process.on('unhandledRejection',error=>fatal(error,'unhandledRejection'));
 process.on('uncaughtException',error=>fatal(error,'uncaughtException'));

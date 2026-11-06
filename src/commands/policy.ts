@@ -4,7 +4,7 @@ export function cooldownMs(name:string){return (seconds[name]??2)*1000;}
 export function channelAllowsCommand(name:string,channelId:string,allowed:ReadonlySet<string>,slash=false){return ['setchannel','imakita'].includes(name)||name==='help'&&slash||allowed.has(channelId);}
 export function channelAllowsComponent(customId:string,channelId:string,allowed:ReadonlySet<string>) {
   if(allowed.has(channelId))return true;
-  return !['replay:','eco:login:','again:'].some(prefix=>customId.startsWith(prefix));
+  return !['replay:','eco:login:','again:','editor:'].some(prefix=>customId.startsWith(prefix));
 }
 export const buttonLifetimeMs=30*60_000;
 export const privateButtonLifetimeMs=14*60_000;

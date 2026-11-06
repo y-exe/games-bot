@@ -16,11 +16,13 @@ export const settings = {
   errorLogChannelId: process.env.ERROR_LOG_CHANNEL_ID ?? '',
   deepseekKey: process.env.DEEPSEEK_API_KEY ?? '',
   voicevoxKey: process.env.VOICEVOX_API_KEY ?? '',
-  voiceGuildIds: new Set((process.env.VOICE_GUILD_IDS??(production?'1355073968532619376,1369344086326116453':process.env.TEST_GUILD_ID??'')).split(',').map(id=>id.trim()).filter(Boolean)),
+  voiceGuildIds: new Set((process.env.VOICE_GUILD_IDS??(production?'':process.env.TEST_GUILD_ID??'')).split(',').map(id=>id.trim()).filter(Boolean)),
+  globalRankHiddenGuildIds: new Set((process.env.GLOBAL_RANKING_HIDE_GUILD_IDS??'').split(',').map(id=>id.trim()).filter(Boolean)),
   rvcPython: process.env.RVC_PYTHON || (production ? 'python' : resolve('.rvc/Scripts/python.exe')),
   rvcRoot: resolve(process.env.RVC_ROOT || (production ? '/opt/rvc' : '.local/rvc')),
   rvcAssets: resolve(process.env.RVC_ASSETS || (production ? '/app/rvc-assets' : '.local/rvc-assets')),
   ffprobe: process.env.FFPROBE_PATH || 'ffprobe',
+  ffmpeg: process.env.FFMPEG_PATH || 'ffmpeg',
   turnTimeoutMs: 180_000,
 };
 export function requireToken() {

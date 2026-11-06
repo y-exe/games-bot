@@ -4,7 +4,7 @@ import { AttachmentBuilder } from 'discord.js';
 import { Context } from './context.js';
 import { card } from '../ui/cards.js';
 import { MediaWorker } from '../services/media.js';
-import { request } from '../services/network.js';
+import { request,readLimitedBody } from '../services/network.js';
 import { settings } from '../config.js';
 import { processAudio } from '../services/audio.js';
 
@@ -28,14 +28,14 @@ export async function media(name:string,ctx:Context,worker:MediaWorker,audioProc
       if(attachment.size>10_000_000)throw new UserError('音声は10MB以下にしてください。');
       extension=attachment.name.split('.').at(-1)?.toLowerCase()??'';
       if(!['wav','mp3','flac','m4a','ogg'].includes(extension))throw new UserError('音声はwav・mp3・flac・m4a・oggに対応しています。');
-      sourceName=attachment.name.replace(/\.[^.]+$/,'');source=Buffer.from(await(await request(attachment.url)).arrayBuffer());
+      sourceName=attachment.name.replace(/\.[^.]+$/,'');source=await readLimitedBody(await request(attachment.url),10_000_000);
     }
     else {
       if(!text.trim()||text.length>200)throw new UserError('読み上げる文字を1〜200文字で指定するか、音声を添付してください。');
       if(!settings.voicevoxKey)throw new UserError('読み上げAPIキーが未設定です。VOICEVOX_API_KEYを設定してください。');
       await ctx.send(card('音声生成中…',`**読み上げ内容**\n${text}\n-# VOICEVOXで音声を生成しています。`,'pending',[],'VOICEVOX'));
       const query=new URLSearchParams({text,speaker:'11',key:settings.voicevoxKey});
-      const response=await request(`https://deprecatedapis.tts.quest/v2/voicevox/audio/?${query}`);if(!response.headers.get('content-type')?.includes('audio'))throw new UserError('読み上げサービスから音声を取得できませんでした。');source=Buffer.from(await response.arrayBuffer());
+      const response=await request(`https://deprecatedapis.tts.quest/v2/voicevox/audio/?${query}`);if(!response.headers.get('content-type')?.includes('audio'))throw new UserError('読み上げサービスから音声を取得できませんでした。');source=await readLimitedBody(response,10_000_000);
     }
     await ctx.send(card('RVC処理中','やまかわボイチェンで変換しています…\n-# 目安: 20〜50秒。処理内容により前後します。','pending'));
     const audio=await audioProcessor(source,extension,true);const filename=`rvc_${sourceName}.${audio.extension}`;
@@ -56,7 +56,7 @@ export async function media(name:string,ctx:Context,worker:MediaWorker,audioProc
   }else{
     const attachment=ctx.attachment();if(!attachment?.contentType?.startsWith('image/')||attachment.size>10_000_000)throw new UserError('10MB以下の画像を添付してください。');
     originalName=attachment.name?.replace(/\.[^.]+$/,'')??'image';
-    const response=await request(attachment.url);const source=Buffer.from(await response.arrayBuffer());if(source.length>10_000_000)throw new UserError('画像が大きすぎます。');
+    const source=await readLimitedBody(await request(attachment.url),10_000_000);
     if(name==='watermark'){const result=await worker.runDetailed({kind:name,bytes:source});bytes=result.bytes;template=result.template;resized=Boolean(result.resized);}
     else bytes=await worker.run({kind:name,bytes:source});
   }
