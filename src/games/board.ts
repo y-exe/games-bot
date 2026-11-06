@@ -80,11 +80,50 @@ export class ConnectFour {
     return false;
   }
   botMove() {
-    for (const p of [this.turn,other(this.turn)]) for (const c of this.moves()) {
-      const copy = this.board.map(r=>[...r]);
-      for (let r=5;r>=0;r--) if(copy[r]![c]===0){ copy[r]![c]=p; break; }
-      if(this.hasWon(p,copy))return c;
+    const centerOrder = [3,4,2,5,1,6,0].filter(c=>this.board[0]![c]===0);
+    if (!centerOrder.length) return undefined;
+    const me = this.turn, foe = other(me);
+    // 1. 即勝ち
+    for (const c of centerOrder) {
+      const b = this.drop(this.board,c,me);
+      if (b && this.hasWon(me,b)) return c;
     }
-    return [3,4,2,5,1,6,0].find(c=>this.moves().includes(c));
+    // 2. 相手の即勝ち阻止
+    for (const c of centerOrder) {
+      const b = this.drop(this.board,c,foe);
+      if (b && this.hasWon(foe,b)) return c;
+    }
+    // 3. 自分のフォーク(次手で即勝ちが2列できる形)を狙う
+    for (const c of centerOrder) {
+      const b = this.drop(this.board,c,me);
+      if (b && this.threatCount(b,foe)===0 && this.threatCount(b,me)>=2) return c;
+    }
+    // 4. 相手に即勝ち・フォークの両方を許さない手を中央寄りで選ぶ
+    const safe = centerOrder.find(c=>{
+      const b = this.drop(this.board,c,me);
+      if (!b || this.threatCount(b,foe)>0) return false;
+      return !this.freeCols(b).some(d=>{
+        const b2 = this.drop(b,d,foe);
+        return b2 && this.hasWon(foe,b2) && this.threatCount(b2,foe)>=2;
+      });
+    });
+    return safe ?? centerOrder[0];
+  }
+  private drop(board: Stone[][], col: number, p: Stone) {
+    for (let r=5;r>=0;r--) if (board[r]![col]===0) {
+      const copy = board.map(row=>[...row]);
+      copy[r]![col] = p;
+      return copy;
+    }
+    return null;
+  }
+  private freeCols(board: Stone[][]) {
+    return [0,1,2,3,4,5,6].filter(c=>board[0]![c]===0);
+  }
+  private threatCount(board: Stone[][], p: Player) {
+    return this.freeCols(board).filter(c=>{
+      const b = this.drop(board,c,p);
+      return b && this.hasWon(p,b);
+    }).length;
   }
 }
