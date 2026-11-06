@@ -137,8 +137,9 @@ export class Store {
     const order=desc?'DESC':'ASC';
     return `points ${order},user_id`;
   }
-  async ranking(botId: string, limit = 10) {
-    return this.transaction(c => c.query<{user_id:string;points:string}>(`SELECT user_id,points FROM games_bot_economy WHERE user_id<>$1 ORDER BY ${this.pointOrder(true)} LIMIT $2`, [botId,limit]));
+  async ranking(botId: string, limit = 10, cohort?: string[]) {
+    const cohortSql=cohort?.length?' AND user_id IN (SELECT jsonb_array_elements_text($3::jsonb)::numeric)':'';
+    return this.transaction(c => c.query<{user_id:string;points:string}>(`SELECT user_id,points FROM games_bot_economy WHERE user_id<>$1${cohortSql} ORDER BY ${this.pointOrder(true)} LIMIT $2`, cohort?.length?[botId,limit,JSON.stringify([...new Set(cohort)])]:[botId,limit]));
   }
   async rankingExport(botId:string) {
     return this.transaction(c=>c.query<RankingEntry>(`SELECT user_id,points FROM games_bot_economy WHERE user_id<>$1 ORDER BY ${this.pointOrder(true)} LIMIT $2`,[botId,rankingLimit]));
@@ -152,21 +153,25 @@ export class Store {
     await this.transaction(c=>c.query(`INSERT INTO games_bot_user_profiles(user_id,display_name,username,fetched_at)
       SELECT user_id,display_name,username,fetched_at FROM jsonb_to_recordset($1::jsonb) AS profiles(user_id numeric,display_name text,username text,fetched_at text)
       ON CONFLICT(user_id) DO UPDATE SET display_name=EXCLUDED.display_name,username=EXCLUDED.username,fetched_at=EXCLUDED.fetched_at
-      WHERE EXCLUDED.fetched_at>=games_bot_user_profiles.fetched_at`,[JSON.stringify(users)]));
+      WHERE EXCLUDED.fetched_at>=games_bot_user_profiles.fetched_at
+        AND (EXCLUDED.display_name IS DISTINCT FROM games_bot_user_profiles.display_name OR EXCLUDED.username IS DISTINCT FROM games_bot_user_profiles.username)`,[JSON.stringify(users)]));
   }
-  async rank(id:string,botId:string) {
-    return this.transaction(c=>this.rankIn(c,id,botId));
+  async rank(id:string,botId:string,cohort?:string[]) {
+    return this.transaction(c=>this.rankIn(c,id,botId,cohort));
   }
-  private async rankIn(c:Connection,id:string,botId:string) {
-    const [r]=await c.query(`SELECT ordinal FROM (SELECT user_id,ROW_NUMBER() OVER (ORDER BY ${this.pointOrder(true)}) AS ordinal FROM games_bot_economy WHERE user_id<>$1) ranked WHERE user_id=$2`,[botId,id]);
+  private async rankIn(c:Connection,id:string,botId:string,cohort?:string[]) {
+    const cohortSql=cohort?.length?' AND user_id IN (SELECT jsonb_array_elements_text($3::jsonb)::numeric)':'';
+    const [r]=await c.query(`SELECT ordinal FROM (SELECT user_id,ROW_NUMBER() OVER (ORDER BY ${this.pointOrder(true)}) AS ordinal FROM games_bot_economy WHERE user_id<>$1${cohortSql}) ranked WHERE user_id=$2`,cohort?.length?[botId,id,JSON.stringify([...new Set(cohort)])]:[botId,id]);
     return r?Number(r.ordinal):-1;
   }
-  async poorRanking(botId:string) {
-    return this.transaction(c=>c.query<{user_id:string;points:string}>(`SELECT user_id,points FROM games_bot_economy WHERE user_id<>$1 AND points<0 ORDER BY ${this.pointOrder(false)} LIMIT 10`,[botId]));
+  async poorRanking(botId:string,cohort?:string[]) {
+    const cohortSql=cohort?.length?' AND user_id IN (SELECT jsonb_array_elements_text($2::jsonb)::numeric)':'';
+    return this.transaction(c=>c.query<{user_id:string;points:string}>(`SELECT user_id,points FROM games_bot_economy WHERE user_id<>$1 AND points<0${cohortSql} ORDER BY ${this.pointOrder(false)} LIMIT 10`,cohort?.length?[botId,JSON.stringify([...new Set(cohort)])]:[botId]));
   }
-  async poorRank(id:string,botId:string) {
+  async poorRank(id:string,botId:string,cohort?:string[]) {
+    const cohortSql=cohort?.length?' AND user_id IN (SELECT jsonb_array_elements_text($3::jsonb)::numeric)':'';
     return this.transaction(async c=>{
-      const [r]=await c.query(`SELECT ordinal FROM (SELECT user_id,ROW_NUMBER() OVER (ORDER BY ${this.pointOrder(false)}) AS ordinal FROM games_bot_economy WHERE user_id<>$1 AND points<0) ranked WHERE user_id=$2`,[botId,id]);
+      const [r]=await c.query(`SELECT ordinal FROM (SELECT user_id,ROW_NUMBER() OVER (ORDER BY ${this.pointOrder(false)}) AS ordinal FROM games_bot_economy WHERE user_id<>$1 AND points<0${cohortSql}) ranked WHERE user_id=$2`,cohort?.length?[botId,id,JSON.stringify([...new Set(cohort)])]:[botId,id]);
       return r?Number(r.ordinal):-1;
     });
   }
@@ -188,12 +193,12 @@ export class Store {
       return count;
     });
   }
-  async login(id: string, botId: string, now = new Date()) {
+  async login(id: string, botId: string, now = new Date(), cohort?: string[]) {
     await this.wealthTax(botId,now);
     return this.accounts([id], async(a,c)=>{
       const user=a.get(id)!; const today=jstDate(now);
       const taxExemptDate=jstDate(nextLoginTime(now));
-      const rank=user.newAccount?-1:await this.rankIn(c,id,botId);
+      const rank=user.newAccount?-1:await this.rankIn(c,id,botId,cohort);
       if(user.lastLogin===today)return { received:false, points:0n, days:user.consecutive, balance:user.points,rank,taxExemptDate };
       user.consecutive=loginDay(user.lastLogin,user.consecutive,now);
       const points=loginReward(user.consecutive,rank);

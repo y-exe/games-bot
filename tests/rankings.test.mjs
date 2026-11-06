@@ -7,23 +7,14 @@ import {MessageFlags} from 'discord.js';
 import {Store} from '../src/data/store.ts';
 import {Economy} from '../src/commands/economy.ts';
 import {rankingExportResponse} from '../src/ui/rankings.ts';
-import {resolveRankingUsers} from '../src/services/ranking-users.ts';
+import {resolveRankingUsers,rememberRankingUser} from '../src/services/ranking-users.ts';
 
-test('名前取得が停止しても制限時間内で一覧を返し、取得済みの名前は途中保存する',async()=>{
-  const saved=[],calls=[];
-  let release;
-  const blocked=new Promise(resolve=>{release=resolve;});
-  const client={users:{cache:new Map(),fetch:async id=>{
-    calls.push(id);
-    if(Number(id)>25)await blocked;
-    return {username:`user${id}`,globalName:`名前${id}`};
-  }}};
-  const store={rankingUsers:async()=>[],saveRankingUsers:async users=>{saved.push(...users);}};
-  const result=await resolveRankingUsers(Array.from({length:100},(_,i)=>String(i+1)),client,null,store,Date.now(),40);
-  assert.equal(result.size,25);assert.equal(saved.length,25);
-  assert.ok(calls.length<=29);
-  release();await new Promise(resolve=>setImmediate(resolve));
-  assert.equal(result.size,25);assert.equal(saved.length,25);assert.ok(calls.length<=29);
+test('1000人の未登録・期限経過した名前でもDiscordへの一括取得を行わない',async()=>{
+  let calls=0;
+  const client={users:{cache:new Map(),fetch:async()=>{calls++;throw new Error('一括取得禁止');}}};
+  const store={rankingUsers:async()=>[{user_id:'1',display_name:'保存済み',username:'saved',fetched_at:'2020-01-01T00:00:00Z'}]};
+  const result=await resolveRankingUsers(Array.from({length:1000},(_,i)=>String(i+1)),client,null,store);
+  assert.equal(result.size,1);assert.equal(result.get('1').username,'saved');assert.equal(calls,0);
 });
 
 test('公開確認はBotのメッセージ編集を使い、受付失敗では確認とポイントを残す',async()=>{
@@ -65,6 +56,23 @@ test('一覧取得はポイント順の上位1000人だけを返し、同点順�
   } finally {await store.close();await rm(dir,{recursive:true,force:true});}
 });
 
+test('サーバー内ランキング・順位は指定メンバーだけを母集団にする',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'games-bot-guild-rankings-')),store=new Store('',dir);
+  try {
+    await store.initialize();
+    await store.transaction(c=>c.query(`INSERT INTO games_bot_economy(user_id,points) VALUES ('1','500'),('2','300'),('4','400'),('3','700'),('5','200')`));
+    const cohort=['1','2','4'];
+    assert.deepEqual((await store.ranking('999',10,cohort)).map(e=>e.user_id),['1','4','2']);
+    assert.equal(await store.rank('1','999',cohort),1);
+    assert.equal(await store.rank('2','999',cohort),3);
+    assert.equal(await store.rank('3','999',cohort),-1);
+    await store.transaction(c=>c.query(`UPDATE games_bot_economy SET points=points-100000 WHERE user_id IN (1,2)`));
+    assert.deepEqual((await store.poorRanking('999',cohort)).map(e=>e.user_id),['2','1']);
+    assert.equal(await store.poorRank('1','999',cohort),2);
+    assert.equal(await store.poorRank('5','999',cohort),-1);
+  } finally {await store.close();await rm(dir,{recursive:true,force:true});}
+});
+
 test('一覧をプレビュー上限以下の通常txt添付に分割し、全行とUTF-8の文字を保持する',()=>{
   const rich=Array.from({length:1000},(_,i)=>({user_id:String(100000000000000000n+BigInt(i)),points:'1'+'0'.repeat(110)}));
   const payloads=rankingExportResponse(rich,id=>id===rich[0].user_id?{displayName:'名前\n改行\tテスト',username:'usuiayari'}:undefined,new Date('2026-10-24T00:00:00Z')).attachments;
@@ -92,47 +100,33 @@ test('一覧をプレビュー上限以下の通常txt添付に分割し、全�
   const batches=rankingExportResponse(rich,()=>({displayName:'名'.repeat(300),username:'test'})).attachments;
   assert.ok(batches.length>1);assert.ok(batches.every(p=>p.files.length<=10));
 });
-test('名前をDBへ保存して再起動後も再利用し、24時間後に更新して取得失敗時は既存名を残す',async()=>{
-  const dir=await mkdtemp(join(tmpdir(),'ranking-users-'));
-  let store=new Store('',dir);
-  const now=Date.parse('2026-10-24T00:00:00Z'),fresh=new Date(now-3600_000).toISOString(),stale=new Date(now-24*3600_000).toISOString();
+test('利用時だけ名前を更新し、変更がなければDBを更新せず再起動後も使う',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'ranking-users-'));let store=new Store('',dir);
+  const now=Date.parse('2026-10-24T00:00:00Z');
   try {
     await store.initialize();
-    await store.saveRankingUsers([
-      {user_id:'1',display_name:'保存済み',username:'saved',fetched_at:fresh},
-      {user_id:'2',display_name:'変更前',username:'old',fetched_at:stale},
-      {user_id:'4',display_name:'前回の名前',username:'last_known',fetched_at:stale},
-    ]);
-    const calls=[];let active=0,maxActive=0;
-    const client={users:{cache:new Map([['2',{username:'old',globalName:'古いメモリキャッシュ'}]]),fetch:async(id,options)=>{
-      assert.equal(options.force,true);calls.push(id);active++;maxActive=Math.max(maxActive,active);
-      try {
-        await new Promise(resolve=>setImmediate(resolve));
-        if(id==='4'||id==='5')throw new Error('unavailable');
-        return {username:id==='2'?'usuiayari':`user${id}`,globalName:id==='2'?'ayari':null};
-      }finally{active--;}
-    }}};
-    const guild={members:{cache:new Map([['3',{displayName:'サーバーの呼び名',user:{username:'nick_user',globalName:'全体の表示名'}}]])}};
-    const ids=['1','2','2','3','4','5',...Array.from({length:10},(_,i)=>String(i+6))];
-    const result=await resolveRankingUsers(ids,client,guild,store,now);
-    assert.deepEqual(result.get('2'),{displayName:'ayari',username:'usuiayari'});
-    assert.equal(result.get('1').username,'saved');assert.equal(result.get('3').displayName,'サーバーの呼び名');
-    assert.equal(result.get('4').username,'last_known');assert.equal(result.has('5'),false);
-    assert.equal(calls.filter(id=>id==='2').length,1);assert.ok(!calls.includes('1'));assert.ok(!calls.includes('3'));
-    assert.ok(maxActive>1&&maxActive<=4);
-    const stored=new Map((await store.rankingUsers(['1','2','3','4','5'])).map(user=>[user.user_id,user]));
-    assert.equal(stored.get('3').display_name,'全体の表示名');assert.equal(stored.has('5'),false);
-    assert.equal(stored.get('4').fetched_at,stale);
-    await store.saveRankingUsers([{user_id:'2',display_name:'古い結果',username:'old',fetched_at:stale}]);
-    assert.equal((await store.rankingUsers(['2']))[0].username,'usuiayari');
+    const user={id:'2',username:'old',globalName:'変更前',bot:false};
+    await rememberRankingUser(store,user,now);
+    await rememberRankingUser(store,user,now+1000);
+    assert.equal((await store.rankingUsers(['2']))[0].fetched_at,new Date(now).toISOString());
+    user.username='usuiayari';user.globalName='ayari';
+    await rememberRankingUser(store,user,now+2000);
+    await rememberRankingUser(store,{...user,username:'古い情報'},now);
+    await rememberRankingUser(store,{id:'3',username:'bot',globalName:null,bot:true},now);
+    assert.equal((await store.rankingUsers(['3'])).length,0);
+    const stored=(await store.rankingUsers(['2']))[0];
+    assert.equal(stored.username,'usuiayari');assert.equal(stored.display_name,'ayari');
     await store.close();store=new Store('',dir);await store.initialize();
-    const before=calls.length;
-    const restored=await resolveRankingUsers(['1','2','3','6'],client,null,store,now+3600_000);
-    assert.equal(calls.length,before);assert.equal(restored.get('3').displayName,'全体の表示名');
-    const text=rankingExportResponse([{user_id:'2',points:'424140'}],id=>restored.get(id)).attachments[0].files[0].attachment.toString('utf8');
-    assert.match(text,/1位  ayari \(@usuiayari\)  424,140pt/);assert.doesNotMatch(text,/ID: 2/);
+    const client={users:{cache:new Map([['2',{username:'old',globalName:'古いキャッシュ'}],['4',{username:'fallback',globalName:null}]]),fetch:async()=>{throw new Error('取得禁止');}}};
+    const result=await resolveRankingUsers(['2','4','5'],client,null,store);
+    assert.deepEqual(result.get('2'),{displayName:'ayari',username:'usuiayari'});
+    assert.deepEqual(result.get('4'),{displayName:'fallback',username:'fallback'});
+    assert.equal(result.has('5'),false);
+    const text=rankingExportResponse([{user_id:'2',points:'424140'}],id=>result.get(id)).attachments[0].files[0].attachment.toString('utf8');
+    assert.match(text,/1位  ayari \(@usuiayari\)  424,140pt/);
   }finally{await store.close();await rm(dir,{recursive:true,force:true});}
 });
+
 test('本人のさらに表示だけを受け付け、先に非公開で受付してから一覧ファイルを返す',async()=>{
   const events=[],queries=[];
   const economy=new Economy({rankingExport:async bot=>{
@@ -145,7 +139,7 @@ test('本人のさらに表示だけを受け付け、先に非公開で受付�
       editReply:async payload=>{events.push('edit');i.payload=payload;},
       followUp:async payload=>{assert.equal(payload.flags,MessageFlags.Ephemeral);assert.equal(payload.components,undefined);events.push('files');i.files=payload.files;},
     };
-    await economy.handle(i);assert.deepEqual(events,['ack','edit','edit','files']);assert.deepEqual(queries,['bot']);
+    await economy.handle(i);assert.deepEqual(events,['ack','edit','files']);assert.deepEqual(queries,['bot']);
     assert.equal(i.payload.flags,MessageFlags.IsComponentsV2);assert.equal(i.payload.files,undefined);assert.ok(i.payload.components.length>0);
     assert.equal(i.files[0].name,'point-rankings.txt');
     assert.match(i.files[0].attachment.toString('utf8'),/ID: 123  500pt/);

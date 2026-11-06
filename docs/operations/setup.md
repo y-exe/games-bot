@@ -67,10 +67,12 @@ bun run dev
 | --- | --- |
 | `DEEPSEEK_API_KEY` | 会話要約・地名推測 |
 | `VOICEVOX_API_KEY` | テキスト読み上げ |
-| `VOICE_GUILD_IDS` | voiceを使えるサーバーID。カンマ区切り。ローカルの既定はテストサーバー |
+| `VOICE_GUILD_IDS` | voiceを使えるサーバーID。カンマ区切り。ローカルの既定はテストサーバー。本番では未設定のサーバーで音声コマンドを使えない |
+| `GLOBAL_RANKING_HIDE_GUILD_IDS` | グローバルランキングのボタンを隠すサーバーID。カンマ区切り。未指定なら全サーバーで表示 |
 | `ERROR_LOG_CHANNEL_ID` | 調査用エラーカードの投稿先 |
 | `RVC_PYTHON`・`RVC_ROOT`・`RVC_ASSETS` | RVCのPython・ソース・モデルの配置先 |
 | `FFPROBE_PATH` | ffprobeのパス。既定 `ffprobe` |
+| `FFMPEG_PATH` | FFmpegのパス。既定 `ffmpeg` |
 
 WindowsのRVCは `.local/rvc` にソース、`.local/rvc-assets` に `ymkw.pth`・`hubert_base.pt` を用意し、`scripts/setup-rvc.ps1` で依存環境を準備します。モデルはリポジトリに同梱していません。
 

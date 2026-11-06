@@ -2,7 +2,7 @@ import {buttonLifetimeMs} from './policy.js';
 import {trackInteractionButtons} from '../ui/button-expiry.js';
 import {UserError} from '../errors.js';
 import { randomInt, randomUUID } from 'node:crypto';
-import { ButtonStyle, MessageFlags, type ButtonInteraction,type Message } from 'discord.js';
+import { ButtonStyle, MessageFlags, type ButtonInteraction, type Guild, type Message } from 'discord.js';
 import { Store } from '../data/store.js';
 import { jstDate } from '../data/store.js';
 import { card, button, row } from '../ui/cards.js';
@@ -16,6 +16,7 @@ import {postErrorLog} from '../services/error-log.js';
 import {requireButtonOwner} from './button-owner.js';
 import {rankingExportResponse} from '../ui/rankings.js';
 import {resolveRankingUsers} from '../services/ranking-users.js';
+import {settings} from '../config.js';
 import {dailyWealthTax} from '../data/wealth-tax.js';
 
 interface Confirm { owner:string; target?:string; amount?:bigint; kind:'give'|'gamble'; expires:number; channelId:string;message?:Message }
@@ -25,11 +26,11 @@ function loginCard(result:Awaited<ReturnType<Store['login']>>,owner:string,now=n
   const body=[
     result.received?`**\`+${formatAmount(result.points)}pt\`** を獲得 · __**連続${result.days}日目**__`:'今日のボーナスは受け取り済みです。',
     `**現在のポイント** · \`${formatAmount(result.balance)}pt\``,
-    `**現在の順位** · \`${result.rank>0?`${result.rank}位`:'圏外'}\``,
+    `**現在のサーバー内順位** · \`${result.rank>0?`${result.rank}位`:'圏外'}\``,
     ...(milestone?[`**連続ログイン特典** · 上の報酬に **+${formatAmount(milestone)}pt** 込み`]:[]),
     '**翌日0時の徴収** · **免除**',
     `**次回の受取** · <t:${next}:F> · <t:${next}:R>`,
-    '-# 連続ログイン・ランキング順位でボーナスが増えます。',
+    '-# 連続ログイン・サーバー内のランキング順位でボーナスが増えます。',
     '-# 受取は1日1回 · 日本時間0時に切替 · 5日目+50pt / 10日目+100pt · 10日目の次は1日目',
   ].join('\n');
   return card(result.received?'ログインボーナス':'ログイン済み',body,result.received?'success':'warning',[row(button(`eco:future:${owner}`,'今後のログボ',ButtonStyle.Secondary,emoji('status_info')))],undefined,undefined,undefined,result.received?0xf1c40f:0xe67e22);
@@ -41,7 +42,7 @@ export function loginForecastCard(account:{lastLogin:string|null;consecutive:num
   const upcoming=loginForecast(last,consecutive,rank,now);
   const today=pending?`**今日の未受取** · **\`+${formatAmount(loginReward(days,rank))}pt\`**（${days}日目）\n-# 下のボタンで今日の分を受け取れます。`:`**次回の受取** · <t:${next}:F> · <t:${next}:R>`;
   const exemption=`**翌日0時の徴収** · ${pending?'今日の受取で免除':'**免除**'}`;
-  return card('今後のログインボーナス',`**現在の順位** · \`${rank>0?`${rank}位`:'圏外'}\`\n${today}\n${exemption}\n\n**今後7日間の報酬**\n${upcoming.map(d=>`> **${d.offset===1?'明日':`${d.offset}日後`}**（${d.date.slice(5)} / ${d.days}日目） · **\`+${formatAmount(d.points)}pt\`**`).join('\n')}\n-# 今日から毎日受け取り、現在の順位が続く場合の予測です。\n-# 順位の変動や受取忘れで報酬は変わります。`,'info',pending?[row(button(`eco:login:${owner}`,'今日のログボを受け取る',ButtonStyle.Success,emoji('status_success')))]:[],undefined,undefined,undefined,0x1abc9c);
+  return card('今後のログインボーナス',`**現在のサーバー内順位** · \`${rank>0?`${rank}位`:'圏外'}\`\n${today}\n${exemption}\n\n**今後7日間の報酬**\n${upcoming.map(d=>`> **${d.offset===1?'明日':`${d.offset}日後`}**（${d.date.slice(5)} / ${d.days}日目） · **\`+${formatAmount(d.points)}pt\`**`).join('\n')}\n-# 今日から毎日受け取り、現在の順位が続く場合の予測です。\n-# 順位の変動や受取忘れで報酬は変わります。`,'info',pending?[row(button(`eco:login:${owner}`,'今日のログボを受け取る',ButtonStyle.Success,emoji('status_success')))]:[],undefined,undefined,undefined,0x1abc9c);
 }
 export class Economy {
   private repeats=new Map<string,{owner:string;amount:string;channelId:string;expires:number}>();
@@ -62,6 +63,10 @@ export class Economy {
     for(const [key,data] of this.details)if(data.expires<=now)this.details.delete(key);
   }
   close() {clearInterval(this.timer);}
+  private async cohort(guild:Guild|null|undefined) {
+    if(!guild)return undefined;
+    try { return [...(await guild.members.fetch()).keys()]; } catch { return undefined; }
+  }
   repeatAction(i:Pick<ButtonInteraction,'customId'|'user'|'channelId'>) {
     const [prefix,kind,key,...extra]=i.customId.split(':');
     if(prefix!=='again'||extra.length)throw new UserError('この操作は期限切れです。コマンドを開き直してください。');
@@ -84,17 +89,22 @@ export class Economy {
   }
   async run(name:string,ctx:Context) {
     if(name==='point') {
-      const points=await this.store.balance(ctx.user.id);const ranks=await this.store.ranking(this.botId());const rank=await this.store.rank(ctx.user.id,this.botId());const poor=await this.store.poorRanking(this.botId());
-      const poorRank=points<0n?await this.store.poorRank(ctx.user.id,this.botId()):-1;
+      const cohort=await this.cohort(ctx.guild);
+      const points=await this.store.balance(ctx.user.id);const worldRank=await this.store.rank(ctx.user.id,this.botId());const rank=cohort?await this.store.rank(ctx.user.id,this.botId(),cohort):worldRank;const poor=cohort?await this.store.poorRanking(this.botId(),cohort):await this.store.poorRanking(this.botId());const poorRank=points<0n?(cohort?await this.store.poorRank(ctx.user.id,this.botId(),cohort):await this.store.poorRank(ctx.user.id,this.botId())):-1;
       const account=await this.store.account(ctx.user.id);const gambleCount=account?.gambleDate===jstDate()?account.gambleCount:0;
       const tax=dailyWealthTax(points);
       const taxLine=account?.lastLogin===jstDate()?'**翌日0時の徴収** · **免除（ログボ受取済み）**':tax>0n?`**翌日0時の徴収目安** · **${formatAmount(tax)}pt**\n-# 今日のログボ受取で免除されます。`:'**翌日0時の徴収** · **対象外（1万pt未満）**';
       const gambleLine=points>0n?`**今日のギャンブル** · **${Math.max(0,5-gambleCount)} / 5回**`:'**今日のギャンブル** · **無制限（救済措置）**';
+      const ranks=cohort?await this.store.ranking(this.botId(),10,cohort):await this.store.ranking(this.botId());
+      const rankLine=cohort?`**サーバー内順位** · **${rank>0?`${rank}位`:'圏外'}** · **グローバル順位** · **${worldRank>0?`${worldRank}位`:'圏外'}**`:`**グローバル順位** · **${worldRank>0?`${worldRank}位`:'圏外'}**`;
       const list=(entries:typeof ranks,medals=false)=>entries.map((p,i)=>`${medals&&i<3?['🥇 ','🥈 ','🥉 '][i]:''}**${i+1}位** <@${p.user_id}> · **${formatAmount(p.points)}pt**`).join('\n');
-      return ctx.send(card('ゲームポイントランキング',`**あなたのポイント** · **${formatAmount(points)}pt**\n**富豪ランク** · **${rank>0?`${rank}位`:'圏外'}**${poorRank>0?` · 貧乏ランク **${poorRank}位**`:''}\n${gambleLine}\n${taxLine}\n\n**🏆 富豪ランキング · Top 5**\n${list(ranks.slice(0,5),true)||'まだプレイヤーがいません。'}${poor.length?`\n\n**💸 貧乏ランキング · Top 3**\n${list(poor.slice(0,3))}`:''}`,'success',[row(button(`eco:login:${ctx.user.id}`,'ログインボーナス',ButtonStyle.Success,emoji('status_success')),button(`eco:point:${ctx.user.id}`,'富豪 Top 10',ButtonStyle.Secondary,emoji('status_info')),button(`eco:poor:${ctx.user.id}`,'貧乏 Top 10',ButtonStyle.Secondary,emoji('status_pending')),button(`eco:rankings:${ctx.user.id}`,'さらに表示（txt）',ButtonStyle.Secondary))], undefined,undefined,undefined,0xf1c40f));
+      const rankButtons=[];
+      if(!ctx.guild||!settings.globalRankHiddenGuildIds.has(ctx.guild.id))rankButtons.push(button(`eco:world:${ctx.user.id}`,'グローバル Top10',ButtonStyle.Secondary,'🌍'));
+      rankButtons.push(button(`eco:point:${ctx.user.id}`,'サーバー Top10',ButtonStyle.Secondary,'🏆'),button(`eco:poor:${ctx.user.id}`,'貧乏 Top10',ButtonStyle.Secondary,'💸'),button(`eco:rankings:${ctx.user.id}`,'さらに表示（txt）',ButtonStyle.Secondary));
+      return ctx.send(card('ゲームポイントランキング',`**あなたのポイント** · **${formatAmount(points)}pt**\n${rankLine}${poorRank>0?` · 貧乏ランク **${poorRank}位**`:''}\n${gambleLine}\n${taxLine}\n\n**🏆 ${cohort?'サーバー内ランキング':'グローバルランキング'} · Top 5**\n${list(ranks.slice(0,5),true)||'まだプレイヤーがいません。'}${poor.length?`\n\n**💸 貧乏ランキング · Top 3**\n${list(poor.slice(0,3))}`:''}`,'success',[row(...rankButtons)], undefined,undefined,undefined,0xf1c40f));
     }
     if(name==='login') {
-      const now=new Date();const result=await this.store.login(ctx.user.id,this.botId(),now);
+      const now=new Date();const result=await this.store.login(ctx.user.id,this.botId(),now,await this.cohort(ctx.guild));
       return ctx.send(loginCard(result,ctx.user.id,now));
     }
     if(name==='bet') {
@@ -137,29 +147,35 @@ export class Economy {
   }
   async handle(i:ButtonInteraction) {
     const [,action,key]=i.customId.split(':');
-    if(action==='point'||action==='poor'||action==='rankings') {
+    if(action==='point'||action==='world'||action==='poor'||action==='rankings') {
       requireButtonOwner(key,i.user.id);
+      if(action==='world'&&i.guild&&settings.globalRankHiddenGuildIds.has(i.guild.id))throw new UserError('グローバルランキングはこのサーバーでは表示できません。');
       if(i.customId.split(':').length!==3)throw new UserError('pointを実行して一覧を開き直してください。');
       await i.deferReply({flags:MessageFlags.Ephemeral});
       if(action==='rankings') {
         const ranks=await this.store.rankingExport(this.botId());
-        await this.edit(i,card('ランキングを準備中','表示名とユーザー名を取得しています。\n件数によって少し時間がかかります。','pending'));
         const users=await resolveRankingUsers(ranks.map(entry=>entry.user_id),i.client,i.guild,this.store);
         const {summary,attachments}=rankingExportResponse(ranks,id=>users.get(id));
         await this.edit(i,summary);
         for(const payload of attachments)await i.followUp({...payload,flags:MessageFlags.Ephemeral});
       } else {
-        const ranks=action==='poor'?await this.store.poorRanking(this.botId()):await this.store.ranking(this.botId());
-        await this.edit(i,card(action==='poor'?'💸 貧乏ランキング · Top 10':'🏆 富豪ランキング · Top 10',ranks.map((p,n)=>`**${n+1}位** <@${p.user_id}> · **${formatAmount(p.points)}pt**`).join('\n')||'該当するプレイヤーがいません。','info',[row(button(`eco:rankings:${key}`,'さらに表示（txt）',ButtonStyle.Secondary))]));
+        const cohort=await this.cohort(i.guild);
+        const ranks=action==='poor'
+          ?cohort?await this.store.poorRanking(this.botId(),cohort):await this.store.poorRanking(this.botId())
+          :action==='world'?await this.store.ranking(this.botId())
+          :cohort?await this.store.ranking(this.botId(),10,cohort):await this.store.ranking(this.botId());
+        const title=action==='poor'?'💸 貧乏ランキング · Top 10':action==='world'?'🌍 富豪ランキング · Top 10（グローバル）':'🏆 富豪ランキング · Top 10（サーバー内）';
+        await this.edit(i,card(title,ranks.map((p,n)=>`**${n+1}位** <@${p.user_id}> · **${formatAmount(p.points)}pt**`).join('\n')||'該当するプレイヤーがいません。','info',[row(button(`eco:rankings:${key}`,'さらに表示（txt）',ButtonStyle.Secondary))]));
       }
       return;
     }
     if(action==='login'||action==='future') {
       if(key!==i.user.id)return i.reply({...card('操作できません','このボタンはコマンドを実行した人専用です。','warning'),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
       await i.deferReply({flags:MessageFlags.Ephemeral});
-      if(action==='login'){const now=new Date();const r=await this.store.login(i.user.id,this.botId(),now);await this.edit(i,loginCard(r,i.user.id,now));}
+      const cohort=await this.cohort(i.guild);
+      if(action==='login'){const now=new Date();const r=await this.store.login(i.user.id,this.botId(),now,cohort);await this.edit(i,loginCard(r,i.user.id,now));}
       else if(action==='future') {
-        const account=await this.store.account(i.user.id);const rank=await this.store.rank(i.user.id,this.botId());
+        const account=await this.store.account(i.user.id);const rank=cohort?await this.store.rank(i.user.id,this.botId(),cohort):await this.store.rank(i.user.id,this.botId());
         await this.edit(i,loginForecastCard(account,rank,i.user.id));
       }
       return;
