@@ -28,6 +28,7 @@ test('もう一度betは3秒を超えるDB処理より先に受付応答し、�
   const i=interaction(),events=new Set();
   const account={points:1000n};
   const economy=new Economy({
+    bankruptcyLast:async()=>undefined,
     accounts:async(_ids,work)=>{
       dbCalls++;
       if(repeating){assert.deepEqual(i.events,['cooldown','ack']);i.events.push('database');i.clock=4000;}
@@ -47,7 +48,7 @@ test('もう一度betは3秒を超えるDB処理より先に受付応答し、�
 
 test('もう一度ギャンブルも受付応答を先に返し、遅い残高取得後に確認カードを返す',async()=>{
   const i=interaction();let queries=0;
-  const economy=new Economy({account:async()=>{queries++;assert.equal(i.deferred,true);i.events.push('database');i.clock=4500;return {points:500n,gambleCount:0,gambleDate:null};}},()=> 'bot');
+  const economy=new Economy({bankruptcyLast:async()=>undefined,account:async()=>{queries++;assert.equal(i.deferred,true);i.events.push('database');i.clock=4500;return {points:500n,gambleCount:0,gambleDate:null};}},()=> 'bot');
   try {
     await economy.repeat(i,()=>{});
     assert.deepEqual(i.events,['ack','database','edit']);assert.equal(queries,1);

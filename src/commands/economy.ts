@@ -18,8 +18,9 @@ import {rankingExportResponse} from '../ui/rankings.js';
 import {resolveRankingUsers} from '../services/ranking-users.js';
 import {settings} from '../config.js';
 import {dailyWealthTax} from '../data/wealth-tax.js';
+import {bankruptcyBanDays,bankruptcyBanUntil,bankruptcyCooldownDays,bankruptcyNextDate} from '../data/bankruptcy.js';
 
-interface Confirm { owner:string; target?:string; amount?:bigint; kind:'give'|'gamble'; expires:number; channelId:string;message?:Message }
+interface Confirm { owner:string; target?:string; amount?:bigint; kind:'give'|'gamble'|'bankrupt'; expires:number; channelId:string;message?:Message }
 function loginCard(result:Awaited<ReturnType<Store['login']>>,owner:string,now=new Date()) {
   const next=Math.floor(nextLoginTime(now).getTime()/1000);
   const milestone=loginMilestoneBonus(result.days);
@@ -61,11 +62,17 @@ export class Economy {
     const expired=[...this.confirms].filter(([,v])=>v.expires<=now);
     for(const [key,data] of expired) {
       this.confirms.delete(key);
-      if(data.message)await data.message.edit(card('確認の時間切れ',`${data.kind==='give'?'送金':'ギャンブル'}は実行されませんでした。\n-# ポイントは変動していません。コマンドから確認を開き直してください。`,'warning')).catch(()=>{});
+      if(data.message)await data.message.edit(card('確認の時間切れ',`${data.kind==='give'?'送金':data.kind==='bankrupt'?'破産':'ギャンブル'}は実行されませんでした。\n-# ポイントは変動していません。コマンドから確認を開き直してください。`,'warning')).catch(()=>{});
     }
     for(const [key,data] of this.details)if(data.expires<=now)this.details.delete(key);
   }
   close() {clearInterval(this.timer);}
+  private async gamblingBan(ctx:Context) {
+    const last=await this.store.bankruptcyLast(ctx.user.id);
+    if(!last)return;
+    const until=bankruptcyBanUntil(last);
+    if(jstDate()<until)throw new UserError(`破産したため${bankruptcyBanDays}日間はギャンブル・betを利用できません(${until}まで)。`);
+  }
   private async cohort(guild:Guild|null|undefined) {
     if(!guild)return undefined;
     try { return [...(await guild.members.fetch()).keys()]; } catch { return undefined; }
@@ -111,6 +118,7 @@ export class Economy {
       return ctx.send(loginCard(result,ctx.user.id,now));
     }
     if(name==='bet') {
+      await this.gamblingBan(ctx);
       const amount=positiveAmount(ctx.text('amount'));const dice=randomInt(1,7);
       const delta=diceDelta(amount,dice);
       const balance=await this.store.accounts([ctx.user.id],async(a,c)=>{
@@ -122,7 +130,7 @@ export class Economy {
       this.repeats.set(repeatKey,{owner:ctx.user.id,amount:String(amount),channelId:ctx.channelId,expires:Date.now()+buttonLifetimeMs});
       return ctx.send(card('ダイスベット結果',`${emoji(`b_${dice}`)} **${['大凶','凶','小吉','吉','中吉','大吉'][dice-1]}**\n${['賭け金を失いました。','賭け金の半分を失いました。','賭け金の半分を失いました。','ポイントは変わりません。','賭け金の半分を獲得。','賭け金と同額を獲得！'][dice-1]}\n<@${ctx.user.id}> · ベット **${formatAmount(amount)}pt**\n\n**ポイント変動** · **${delta>=0n?'+':''}${formatAmount(delta)}pt**\n**現在のポイント** · **${formatAmount(balance)}pt**`,delta>=0n?'success':'warning',[row(button(`again:bet:${repeatKey}`,'もう一度bet',ButtonStyle.Primary,emoji(`b_${dice}`)),button(`eco:point:${ctx.user.id}`,'残高・順位を見る',ButtonStyle.Secondary,emoji('status_info')))],undefined,undefined,undefined,0x9b59b6));
     }
-    const key=randomUUID();const data: Confirm={owner:ctx.user.id,kind:name as 'give'|'gamble',expires:Date.now()+60_000,channelId:ctx.channelId};
+    const key=randomUUID();const data: Confirm={owner:ctx.user.id,kind:name as 'give'|'gamble'|'bankrupt',expires:Date.now()+60_000,channelId:ctx.channelId};
     let body='';
     if(name==='give') {
       const target=await ctx.target('user');if(!target||target.bot||target.id===ctx.user.id)throw new UserError('自分以外のユーザーを送金先に指定してください。');
@@ -130,17 +138,27 @@ export class Economy {
       const fee=transferFee(data.amount);const balance=await this.store.balance(ctx.user.id);
       if(balance<data.amount+fee)throw new UserError(`残高不足です。手数料込みで ${data.amount+fee}pt 必要です。`);
       body=`**送金先** · <@${target.id}>\n**送金額** · **${formatAmount(data.amount)}pt**\n**手数料（15%）** · **${formatAmount(fee)}pt**\n\n**合計支払額** · **${formatAmount(data.amount+fee)}pt**\n**送金後のポイント** · **${formatAmount(balance-data.amount-fee)}pt**\n-# 内容を確認して「送金する」を押してください。`;
-    } else {
+    } else if(name==='gamble') {
+      await this.gamblingBan(ctx);
       const account=await this.store.account(ctx.user.id);const balance=account?.points??0n;
       const count=account?.gambleDate===jstDate()?account.gambleCount:0;
       if(balance>0n&&count>=5)throw new UserError('今日は5回プレイ済みです。betで遊べます。');
       const {min,max}=stakeBounds(balance),stakeRange=min===max?`${formatAmount(min)}pt`:`${formatAmount(min)}〜${formatAmount(max)}pt`;
       body=`**現在のポイント** · \`${formatAmount(balance)}pt\`\n**賭け金の範囲** · **${stakeRange}**\n**本日の残り** · ${balance>0n?`**${5-count} / 5回**`:'**無制限（救済措置）**'}\n\n**ギャンブルの仕組み**\n- 賭け金・倍率はランダム。\n- 倍率は **±1.51〜10.00倍**(当たり約71%)。\n- プラス残高は **1日5回**、借金中は **回数無制限**。\n-# ポイント変動 = 賭け金 × 倍率 − 賭け金`;
+    } else {
+      const balance=await this.store.balance(ctx.user.id);
+      if(balance>=0n)throw new UserError('借金していないので破産できません。');
+      const last=await this.store.bankruptcyLast(ctx.user.id);
+      if(last){
+        const next=bankruptcyNextDate(last);
+        if(jstDate()<next)throw new UserError(`前回の破産から${bankruptcyCooldownDays}日間は再破産できません。${next}以降に実行してください。`);
+      }
+      body=`**現在のポイント** · \`${formatAmount(balance)}pt\`\n\n**破産すると**\n- 借金 **${formatAmount(-balance)}pt** が **0pt** に戻ります\n- 連続ログイン日数が **リセット** されます\n- **${bankruptcyBanDays}日間**、ギャンブル・bet が使えなくなります\n- **${bankruptcyCooldownDays}日間**、再び破産できません\n-# 破産は取り消せません。「破産する」を押してください。`;
     }
     await this.expire();
     for(const [k,v] of this.details)if(v.expires<Date.now())this.details.delete(k);
     this.confirms.set(key,data);
-    const message=await ctx.send(card(name==='give'?'送金を確認':'ハイリスクギャンブル',body,'warning',[row(button(`eco:confirm:${key}`,name==='give'?'送金する':'実行する',ButtonStyle.Danger),button(`eco:cancel:${key}`,'キャンセル',ButtonStyle.Secondary),...(name==='gamble'?[button(`eco:mechanism:${key}`,'仕組み',ButtonStyle.Secondary,'⚙️')]:[]))], '確認は60秒以内'));
+    const message=await ctx.send(card(name==='give'?'送金を確認':name==='bankrupt'?'自己破産の確認':'ハイリスクギャンブル',body,'warning',[row(button(`eco:confirm:${key}`,name==='give'?'送金する':name==='bankrupt'?'破産する':'実行する',ButtonStyle.Danger),button(`eco:cancel:${key}`,'キャンセル',ButtonStyle.Secondary),...(name==='gamble'?[button(`eco:mechanism:${key}`,'仕組み',ButtonStyle.Secondary,'⚙️')]:[]))], '確認は60秒以内'));
     data.message=message;return message;
   }
   private async edit(i:ButtonInteraction,payload:ReturnType<typeof card>,update=false) {
@@ -216,6 +234,10 @@ export class Economy {
     return response;
   }
   private async confirm(data:Confirm,key:string) {
+    if(data.kind==='bankrupt') {
+      const result=await this.store.bankrupt(data.owner);
+      return card('自己破産 · 完了',`借金 **${formatAmount(result.debt)}pt** を0にしました。\n**連続ログイン** · リセット(次回は1日目から)\n**ギャンブル・bet** · ${bankruptcyBanDays}日間利用できません(${bankruptcyBanUntil(result.lastDate)}まで)\n**次の破産** · ${bankruptcyNextDate(result.lastDate)}から可能\n-# ${result.times}回目の破産です。`,'info');
+    }
     if(data.kind==='give') {
       const result=await this.store.transfer(`give:${key}`,data.owner,data.target!,data.amount!);
       return card('送金完了',`<@${data.target}> に **${data.amount}pt** を送りました。\n**手数料** · **${result.fee}pt**\n**現在のポイント** · **${result.balance}pt**`,'success');

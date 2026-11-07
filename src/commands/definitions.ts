@@ -15,6 +15,7 @@ export const commands = [
   basic('bet','サイコロでポイントを賭ける').addStringOption(o=>o.setName('amount').setDescription('賭け金').setRequired(true).setAutocomplete(true)),
   basic('gamble','ハイリスクギャンブルの確認を開く'),
   basic('give','手数料15%でポイントを送金する').addUserOption(o=>o.setName('user').setDescription('送金先').setRequired(true)).addStringOption(o=>o.setName('amount').setDescription('送金額').setRequired(true).setAutocomplete(true)),
+  basic('bankrupt','借金を0に戻す自己破産を行う(ペナルティあり)'),
   basic('text','文字画像の種類を選んで生成する').addStringOption(o=>o.setName('text').setDescription('画像にする文字').setMaxLength(200)),
   basic('textc','文字画像をカスタム・テンプレートを保存する').addStringOption(o=>o.setName('text').setDescription('画像にする文字、またはスタイルコード・旧ID').setMaxLength(4000)),
   ...['text1','text2','text3','text4','text5'].map((name,i)=>basic(name,['黄色の縁取り文字画像','青色の縁取り文字画像','赤色の明朝体文字画像','変形した文字スタンプ','虹色の文字スタンプ'][i]!).addStringOption(o=>o.setName('text').setDescription('画像にする文字（コンマで改行）').setRequired(true).setMaxLength(200)).addBooleanOption(o=>o.setName('square').setDescription('正方形スタンプにする'))),
@@ -40,7 +41,7 @@ export const aliases: Record<string,string> = {
   チェス:'chess',ちぇす:'chess',マインスイーパー:'minesweeper',マインスイーパ:'minesweeper',まいんすいーぱー:'minesweeper',mines:'minesweeper',ms:'minesweeper',
   おせろ:'othello','4moku':'connectfour','4nara':'connectfour',よんもく:'connectfour','4目並べ':'connectfour',へるぷ:'help',ヘルプ:'help',weather:'tenki',テンキ:'tenki',
   cf:'connectfour',四目並べ:'connectfour',オセロ:'othello',じゃんけん:'janken',ジャンケン:'janken',hl:'highlow',ハイロー:'highlow',
-  points:'point',ポイント:'point',bonus:'login',daily:'login',ログイン:'login',ログボ:'login',pay:'give',送金:'give',ギャンブル:'gamble',賭け:'bet',かけ:'bet',ベッド:'bet',べっど:'bet',
+  points:'point',ポイント:'point',bonus:'login',daily:'login',ログイン:'login',ログボ:'login',pay:'give',送金:'give',ギャンブル:'gamble',賭け:'bet',かけ:'bet',ベッド:'bet',べっど:'bet',破産:'bankrupt',はさん:'bankrupt',自己破産:'bankrupt',bankruptcy:'bankrupt',
   退出:'leave',たいしゅつ:'leave',レート:'rate',れーと:'rate',為替:'rate',天気:'tenki',てんき:'tenki',突然の死:'totusi',とつし:'totusi',突死:'totusi',詳細:'info',いんふぉ:'info',時間:'time',たいむ:'time',タイム:'time',じかん:'time',ピング:'ping',接続速度:'ping',ぴんぐ:'ping',
   テキスト:'text',テキスト1:'text1',テキスト2:'text2',テキスト3:'text3',テキスト4:'text4',テキスト5:'text5',テキストカスタム:'textc',ウォーターマーク:'watermark',うぉーたーまーく:'watermark',ゲーミング:'gaming',げーみんぐ:'gaming',ボイス:'voice',ぼいす:'voice',ボイチェン:'voice','5000兆円':'5000',
 };

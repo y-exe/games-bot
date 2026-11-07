@@ -9,6 +9,7 @@ import {transferFee} from './money.js';
 import {rankingLimit,type RankingEntry,type RankingUserRecord} from './rankings.js';
 import {dailyWealthTax,wealthTaxThreshold} from './wealth-tax.js';
 import {dailyWelfare} from './welfare.js';
+import {bankruptcyNextDate} from './bankruptcy.js';
 import {TextTemplates,textTemplateSchema} from './text-templates.js';
 export {jstDate} from './login.js';
 
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS games_bot_events(event_id text PRIMARY KEY, created_a
 CREATE TABLE IF NOT EXISTS games_bot_sessions(session_id text PRIMARY KEY, payload text NOT NULL);
 CREATE TABLE IF NOT EXISTS games_bot_user_profiles(user_id numeric(20,0) PRIMARY KEY, display_name text NOT NULL, username text NOT NULL, fetched_at text NOT NULL);
 CREATE TABLE IF NOT EXISTS games_bot_tax_exemptions(user_id numeric(20,0) NOT NULL, tax_date date NOT NULL, PRIMARY KEY(user_id,tax_date));
+CREATE TABLE IF NOT EXISTS games_bot_bankruptcy(user_id numeric(20,0) PRIMARY KEY, times integer NOT NULL, last_date date NOT NULL);
 ${textTemplateSchema}
 `;
 function dateString(value: unknown): string | null { return value instanceof Date ? value.toISOString().slice(0,10) : value ? String(value).slice(0,10) : null; }
@@ -210,6 +212,27 @@ export class Store {
     });
   }
   async allowedChannels() { return this.transaction(async c => new Set((await c.query('SELECT channel_id FROM games_bot_allowed_channels')).map(r=>String(r.channel_id)))); }
+  async bankruptcyLast(id:string) {
+    const [row]=await this.transaction(c=>c.query('SELECT last_date FROM games_bot_bankruptcy WHERE user_id=$1',[id]));
+    return row?String(row.last_date).slice(0,10):undefined;
+  }
+  async bankrupt(id:string,now=new Date()) {
+    const today=jstDate(now);
+    return this.accounts([id],async(a,c)=>{
+      const user=a.get(id)!;
+      if(user.points>=0n)throw new UserError('借金していないので破産できません。');
+      const [row]=await c.query('SELECT last_date FROM games_bot_bankruptcy WHERE user_id=$1',[id]);
+      const last=row?String(row.last_date).slice(0,10):undefined;
+      if(last){
+        const next=bankruptcyNextDate(last);
+        if(today<next)throw new UserError(`前回の破産(${last})からしばらくは再破産できません。${next}以降に実行してください。`);
+      }
+      const debt=user.points;
+      user.points=0n; user.consecutive=0;
+      const [saved]=await c.query('INSERT INTO games_bot_bankruptcy(user_id,times,last_date) VALUES($1,1,$2) ON CONFLICT(user_id) DO UPDATE SET times=games_bot_bankruptcy.times+1,last_date=$2 RETURNING times',[id,today]);
+      return {debt,times:Number(saved!.times),lastDate:today};
+    });
+  }
   async toggleChannel(id: string) {
     return this.transaction(async c=>{
       if(this.pool)await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`allowed-channel:${id}`]);

@@ -37,7 +37,7 @@ try{await store.initialize();}catch(error){const report=errorReport(error,'datab
 loadEmojis();const allowed=await store.allowedChannels();setErrorChannels(allowed);
 const games=new Games(client,store);const economy=new Economy(store,()=>client.user!.id);const editor=new Editor(client);const worker=new MediaWorker();
 const textStudio=new TextStudio(new TextTemplates(store),worker);
-const gameNames=new Set(['othello','connectfour','janken','highlow','chess','minesweeper']);const economyNames=new Set(['point','login','give','bet','gamble']);const mediaNames=new Set(['text1','text2','text3','text4','text5','watermark','gaming','5000','voice']);
+const gameNames=new Set(['othello','connectfour','janken','highlow','chess','minesweeper']);const economyNames=new Set(['point','login','give','bet','gamble','bankrupt']);const mediaNames=new Set(['text1','text2','text3','text4','text5','watermark','gaming','5000','voice']);
 const cooldowns=new CommandCooldowns();
 const rememberUser=(user:Parameters<typeof rememberRankingUser>[1])=>void rememberRankingUser(store,user).catch(()=>console.error('ランキングのユーザー名を保存できませんでした。'));
 async function execute(name:string,ctx:Context) {

@@ -14,7 +14,7 @@ function findId(payload, prefix) {
 
 test('betの再実行は本人・元のチャンネルのみ許可し、大きい金額も短いボタンIDで保持する', async () => {
   const amount = '1' + '0'.repeat(110);
-  const economy = new Economy({ accounts: async (_ids, work) => work(new Map([['owner', { points: BigInt(amount) * 2n }]]), {}), once: async () => true }, () => 'bot');
+  const economy = new Economy({ bankruptcyLast: async () => undefined, accounts: async (_ids, work) => work(new Map([['owner', { points: BigInt(amount) * 2n }]]), {}), once: async () => true }, () => 'bot');
   try {
     let payload;
     await economy.run('bet', { user: { id: 'owner' }, channelId: 'channel', id: 'operation', text: () => amount, send: async value => { payload = value; } });
