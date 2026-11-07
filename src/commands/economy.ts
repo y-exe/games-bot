@@ -18,7 +18,7 @@ import {rankingExportResponse} from '../ui/rankings.js';
 import {resolveRankingUsers} from '../services/ranking-users.js';
 import {settings} from '../config.js';
 import {dailyWealthTax} from '../data/wealth-tax.js';
-import {bankruptcyBanDays,bankruptcyBanUntil,bankruptcyCooldownDays,bankruptcyNextDate} from '../data/bankruptcy.js';
+import {bankruptcyBanDays,bankruptcyBanUntil,bankruptcyCooldown,bankruptcyNextDate} from '../data/bankruptcy.js';
 
 interface Confirm { owner:string; target?:string; amount?:bigint; kind:'give'|'gamble'|'bankrupt'; expires:number; channelId:string;message?:Message }
 function loginCard(result:Awaited<ReturnType<Store['login']>>,owner:string,now=new Date()) {
@@ -70,7 +70,7 @@ export class Economy {
   private async gamblingBan(ctx:Context) {
     const last=await this.store.bankruptcyLast(ctx.user.id);
     if(!last)return;
-    const until=bankruptcyBanUntil(last);
+    const until=bankruptcyBanUntil(last.lastDate);
     if(jstDate()<until)throw new UserError(`破産したため${bankruptcyBanDays}日間はギャンブル・betを利用できません(${until}まで)。`);
   }
   private async cohort(guild:Guild|null|undefined) {
@@ -150,10 +150,11 @@ export class Economy {
       if(balance>=0n)throw new UserError('借金していないので破産できません。');
       const last=await this.store.bankruptcyLast(ctx.user.id);
       if(last){
-        const next=bankruptcyNextDate(last);
-        if(jstDate()<next)throw new UserError(`前回の破産から${bankruptcyCooldownDays}日間は再破産できません。${next}以降に実行してください。`);
+        const next=bankruptcyNextDate(last.lastDate,last.cooldownDays);
+        if(jstDate()<next)throw new UserError(`前回の破産から${last.cooldownDays}日間は再破産できません。${next}以降に実行してください。`);
       }
-      body=`**現在のポイント** · \`${formatAmount(balance)}pt\`\n\n**破産すると**\n- 借金 **${formatAmount(-balance)}pt** が **0pt** に戻ります\n- 連続ログイン日数が **リセット** されます\n- **${bankruptcyBanDays}日間**、ギャンブル・bet が使えなくなります\n- **${bankruptcyCooldownDays}日間**、再び破産できません\n-# 破産は取り消せません。「破産する」を押してください。`;
+      const cooldownDays=bankruptcyCooldown(-balance);
+      body=`**現在のポイント** · \`${formatAmount(balance)}pt\`\n\n**破産すると**\n- 借金 **${formatAmount(-balance)}pt** が **0pt** に戻ります\n- 連続ログイン日数が **リセット** されます\n- **${bankruptcyBanDays}日間**、ギャンブル・bet が使えなくなります\n- **${cooldownDays}日間**、再び破産できません(借金の額に応じて30〜100日)\n-# 破産は取り消せません。「破産する」を押してください。`;
     }
     await this.expire();
     for(const [k,v] of this.details)if(v.expires<Date.now())this.details.delete(k);
@@ -236,7 +237,7 @@ export class Economy {
   private async confirm(data:Confirm,key:string) {
     if(data.kind==='bankrupt') {
       const result=await this.store.bankrupt(data.owner);
-      return card('自己破産 · 完了',`借金 **${formatAmount(result.debt)}pt** を0にしました。\n**連続ログイン** · リセット(次回は1日目から)\n**ギャンブル・bet** · ${bankruptcyBanDays}日間利用できません(${bankruptcyBanUntil(result.lastDate)}まで)\n**次の破産** · ${bankruptcyNextDate(result.lastDate)}から可能\n-# ${result.times}回目の破産です。`,'info');
+      return card('自己破産 · 完了',`借金 **${formatAmount(result.debt)}pt** を0にしました。\n**連続ログイン** · リセット(次回は1日目から)\n**ギャンブル・bet** · ${bankruptcyBanDays}日間利用できません(${bankruptcyBanUntil(result.lastDate)}まで)\n**次の破産** · ${result.nextDate}から可能(${result.cooldownDays}日間)\n-# ${result.times}回目の破産です。`,'info');
     }
     if(data.kind==='give') {
       const result=await this.store.transfer(`give:${key}`,data.owner,data.target!,data.amount!);
