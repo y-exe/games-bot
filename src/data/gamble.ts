@@ -28,7 +28,9 @@ export function rollGamble(current:bigint,integer=(min:bigint,max:bigint)=>rando
   const {min,max}=stakeBounds(current),stake=integer(min,max);
   const roll=unit(),lower=roll<.02?5.01:roll<.15?3.01:1.51,upper=roll<.02?10:roll<.15?5:3;
   const base=lower+(upper-lower)*unit();
-  const sign=integer(0n,1n)?1:-1;
+  // 当たり確率は帯ごとに変え、期待値を0に保つ(1/2 + 1/(2×帯の平均倍率))
+  const winRate=roll<.02?.5666:roll<.15?.6248:.7217;
+  const sign=unit()<winRate?1:-1;
   const multiplier=multiplierCents(base*sign);
   return {stake,multiplier,delta:stake*BigInt(multiplier)/100n-stake};
 }

@@ -8,6 +8,7 @@ import {loginReward,loginDay,jstDate,nextLoginTime} from './login.js';
 import {transferFee} from './money.js';
 import {rankingLimit,type RankingEntry,type RankingUserRecord} from './rankings.js';
 import {dailyWealthTax,wealthTaxThreshold} from './wealth-tax.js';
+import {dailyWelfare} from './welfare.js';
 import {TextTemplates,textTemplateSchema} from './text-templates.js';
 export {jstDate} from './login.js';
 
@@ -199,12 +200,13 @@ export class Store {
       const user=a.get(id)!; const today=jstDate(now);
       const taxExemptDate=jstDate(nextLoginTime(now));
       const rank=user.newAccount?-1:await this.rankIn(c,id,botId,cohort);
-      if(user.lastLogin===today)return { received:false, points:0n, days:user.consecutive, balance:user.points,rank,taxExemptDate };
+      const welfare=user.points<0n?dailyWelfare(-user.points):0n;
+      if(user.lastLogin===today)return { received:false, points:0n, days:user.consecutive, balance:user.points,rank,taxExemptDate,welfare:0n };
       user.consecutive=loginDay(user.lastLogin,user.consecutive,now);
       const points=loginReward(user.consecutive,rank);
-      user.lastLogin=today; user.points+=points;
+      user.lastLogin=today; user.points+=points+welfare;
       await c.query('INSERT INTO games_bot_tax_exemptions(user_id,tax_date) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,taxExemptDate]);
-      return {received:true,points,days:user.consecutive,balance:user.points,rank,taxExemptDate};
+      return {received:true,points,days:user.consecutive,balance:user.points,rank,taxExemptDate,welfare};
     });
   }
   async allowedChannels() { return this.transaction(async c => new Set((await c.query('SELECT channel_id FROM games_bot_allowed_channels')).map(r=>String(r.channel_id)))); }

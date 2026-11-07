@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {Store} from '../src/data/store.ts';
 import {loginReward,loginDay,loginForecast,nextLoginTime} from '../src/data/login.ts';
+import {dailyWelfare} from '../src/data/welfare.ts';
 import {taxScheduler} from '../src/services/tax.ts';
 import {Economy,loginForecastCard} from '../src/commands/economy.ts';
 
@@ -63,6 +64,26 @@ test('導入前のログボ受取記録も移行し、翌日の免除に利用�
     const records=await store.transaction(c=>c.query('SELECT tax_date FROM games_bot_tax_exemptions WHERE user_id=1 ORDER BY tax_date'));
     assert.deepEqual(records.map(r=>r.tax_date),['2026-10-25','2026-10-26']);
   }finally{await store.close();await rm(dir,{recursive:true,force:true});}
+});
+
+test('借金中のログボには生活保護(借金の10%・最低100・上限1,000)が上乗せされる',async()=>{
+  assert.deepEqual([0n,500n,5000n,20000n,999999n].map(dailyWelfare),[0n,100n,500n,1000n,1000n]);
+  const dir=await mkdtemp(join(tmpdir(),'login-welfare-')),store=new Store('',dir);
+  const now=new Date('2026-10-24T15:00:00Z');
+  try {
+    await store.initialize();
+    await store.reward('seed',{'1':-5000n,'2':-20000n,'3':-500n,'4':1000n});
+    const small=await store.login('3','999',now);
+    assert.equal(small.welfare,100n);assert.equal(small.balance,-500n+100n+50n);
+    const standard=await store.login('1','999',now);
+    assert.equal(standard.welfare,500n);assert.equal(standard.balance,-5000n+500n+50n);
+    const capped=await store.login('2','999',now);
+    assert.equal(capped.welfare,1000n);assert.equal(capped.balance,-20000n+1000n+40n);
+    const positive=await store.login('4','999',now);
+    assert.equal(positive.welfare,0n);assert.equal(positive.balance,1000n+60n);
+    const again=await store.login('1','999',now);
+    assert.equal(again.received,false);assert.equal(again.welfare,0n);
+  } finally {await store.close();await rm(dir,{recursive:true,force:true});}
 });
 
 test('ログボの受取画面に、特典込みの報酬と翌日0時の免除を表示する',async()=>{

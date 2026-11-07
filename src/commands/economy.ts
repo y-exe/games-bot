@@ -26,23 +26,26 @@ function loginCard(result:Awaited<ReturnType<Store['login']>>,owner:string,now=n
   const body=[
     result.received?`**\`+${formatAmount(result.points)}pt\`** を獲得 · __**連続${result.days}日目**__`:'今日のボーナスは受け取り済みです。',
     `**現在のポイント** · \`${formatAmount(result.balance)}pt\``,
+    ...(result.received&&result.welfare?[`**生活保護** · **\`+${formatAmount(result.welfare)}pt\`** 込み(借金の10% · 上限1,000pt)`]:[]),
     `**現在のサーバー内順位** · \`${result.rank>0?`${result.rank}位`:'圏外'}\``,
     ...(milestone?[`**連続ログイン特典** · 上の報酬に **+${formatAmount(milestone)}pt** 込み`]:[]),
     '**翌日0時の徴収** · **免除**',
     `**次回の受取** · <t:${next}:F> · <t:${next}:R>`,
     '-# 連続ログイン・サーバー内のランキング順位でボーナスが増えます。',
+    '-# 借金中は受取時に借金の10%(上限1,000pt)の生活保護が上乗せされます。',
     '-# 受取は1日1回 · 日本時間0時に切替 · 5日目+50pt / 10日目+100pt · 10日目の次は1日目',
   ].join('\n');
   return card(result.received?'ログインボーナス':'ログイン済み',body,result.received?'success':'warning',[row(button(`eco:future:${owner}`,'今後のログボ',ButtonStyle.Secondary,emoji('status_info')))],undefined,undefined,undefined,result.received?0xf1c40f:0xe67e22);
 }
-export function loginForecastCard(account:{lastLogin:string|null;consecutive:number}|undefined,rank:number,owner:string,now=new Date()) {
+export function loginForecastCard(account:{lastLogin:string|null;consecutive:number;points?:bigint}|undefined,rank:number,owner:string,now=new Date()) {
   const last=account?.lastLogin??null,consecutive=account?.consecutive??0;
   const pending=last!==jstDate(now),days=loginDay(last,consecutive,now);
   const next=Math.floor(nextLoginTime(now).getTime()/1000);
   const upcoming=loginForecast(last,consecutive,rank,now);
   const today=pending?`**今日の未受取** · **\`+${formatAmount(loginReward(days,rank))}pt\`**（${days}日目）\n-# 下のボタンで今日の分を受け取れます。`:`**次回の受取** · <t:${next}:F> · <t:${next}:R>`;
   const exemption=`**翌日0時の徴収** · ${pending?'今日の受取で免除':'**免除**'}`;
-  return card('今後のログインボーナス',`**現在のサーバー内順位** · \`${rank>0?`${rank}位`:'圏外'}\`\n${today}\n${exemption}\n\n**今後7日間の報酬**\n${upcoming.map(d=>`> **${d.offset===1?'明日':`${d.offset}日後`}**（${d.date.slice(5)} / ${d.days}日目） · **\`+${formatAmount(d.points)}pt\`**`).join('\n')}\n-# 今日から毎日受け取り、現在の順位が続く場合の予測です。\n-# 順位の変動や受取忘れで報酬は変わります。`,'info',pending?[row(button(`eco:login:${owner}`,'今日のログボを受け取る',ButtonStyle.Success,emoji('status_success')))]:[],undefined,undefined,undefined,0x1abc9c);
+  const welfare=account?.points!==undefined&&account.points<0n?'\n-# 借金中は毎日の受取に生活保護(借金の10% · 上限1,000pt)が上乗せされます。':'';
+  return card('今後のログインボーナス',`**現在のサーバー内順位** · \`${rank>0?`${rank}位`:'圏外'}\`\n${today}\n${exemption}\n\n**今後7日間の報酬**\n${upcoming.map(d=>`> **${d.offset===1?'明日':`${d.offset}日後`}**（${d.date.slice(5)} / ${d.days}日目） · **\`+${formatAmount(d.points)}pt\`**`).join('\n')}\n-# 今日から毎日受け取り、現在の順位が続く場合の予測です。\n-# 順位の変動や受取忘れで報酬は変わります。${welfare}`,'info',pending?[row(button(`eco:login:${owner}`,'今日のログボを受け取る',ButtonStyle.Success,emoji('status_success')))]:[],undefined,undefined,undefined,0x1abc9c);
 }
 export class Economy {
   private repeats=new Map<string,{owner:string;amount:string;channelId:string;expires:number}>();
@@ -132,7 +135,7 @@ export class Economy {
       const count=account?.gambleDate===jstDate()?account.gambleCount:0;
       if(balance>0n&&count>=5)throw new UserError('今日は5回プレイ済みです。betで遊べます。');
       const {min,max}=stakeBounds(balance),stakeRange=min===max?`${formatAmount(min)}pt`:`${formatAmount(min)}〜${formatAmount(max)}pt`;
-      body=`**現在のポイント** · \`${formatAmount(balance)}pt\`\n**賭け金の範囲** · **${stakeRange}**\n**本日の残り** · ${balance>0n?`**${5-count} / 5回**`:'**無制限（救済措置）**'}\n\n**ギャンブルの仕組み**\n- 賭け金・倍率はランダム。\n- 倍率は **±1.51〜10.00倍**。\n- プラス残高は **1日5回**、借金中は **回数無制限**。\n-# ポイント変動 = 賭け金 × 倍率 − 賭け金`;
+      body=`**現在のポイント** · \`${formatAmount(balance)}pt\`\n**賭け金の範囲** · **${stakeRange}**\n**本日の残り** · ${balance>0n?`**${5-count} / 5回**`:'**無制限（救済措置）**'}\n\n**ギャンブルの仕組み**\n- 賭け金・倍率はランダム。\n- 倍率は **±1.51〜10.00倍**(当たり約71%)。\n- プラス残高は **1日5回**、借金中は **回数無制限**。\n-# ポイント変動 = 賭け金 × 倍率 − 賭け金`;
     }
     await this.expire();
     for(const [k,v] of this.details)if(v.expires<Date.now())this.details.delete(k);
@@ -190,7 +193,7 @@ export class Economy {
     if(!data||data.expires<Date.now()||data.owner!==i.user.id||data.channelId!==i.channelId)return i.reply({...card('確認を開き直してください','期限切れ、または別の人の確認画面です。','warning'),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});
     if(action==='mechanism') {
       if(data.kind!=='gamble')throw new UserError('この操作はギャンブル専用です。');
-      await i.reply({...card('ギャンブルの仕組み',`**1. 賭け金の決定**\n- プラス残高は所持額の約1/3〜全額から抽選。\n- 借金中は借金額の **5〜約10.89%** から抽選（端数切り捨て・最低100pt）。\n- 残高0ptの場合は **100pt**。\n\n**2. 倍率の抽選**\n- 85%: ±1.51〜3.00倍\n- 13%: ±3.01〜5.00倍\n- 2%: ±5.01〜10.00倍\n- 正負は各50%。\n\n**3. ポイント変動**\n\`賭け金 × 倍率（小数部分を0方向に切り捨て） − 賭け金\`\n-# 借金中は回数無制限。プラス残高は毎日0時（日本時間）に5回へリセット。`),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});return;
+      await i.reply({...card('ギャンブルの仕組み',`**1. 賭け金の決定**\n- プラス残高は所持額の約1/3〜全額から抽選。\n- 借金中は借金額の **5〜約10.89%** から抽選（端数切り捨て・最低100pt）。\n- 残高0ptの場合は **100pt**。\n\n**2. 倍率の抽選**\n- 85%: ±1.51〜3.00倍 · 当たり **72%**\n- 13%: ±3.01〜5.00倍 · 当たり **62%**\n- 2%: ±5.01〜10.00倍 · 当たり **57%**\n- 大きい倍率ほど当たりにくく、期待値は **±0**（還元率100%）。\n\n**3. ポイント変動**\n\`賭け金 × 倍率（小数部分を0方向に切り捨て） − 賭け金\`\n-# 借金中は回数無制限。プラス残高は毎日0時（日本時間）に5回へリセット。`),flags:MessageFlags.IsComponentsV2|MessageFlags.Ephemeral});return;
     }
     if(action!=='cancel'&&action!=='confirm')throw new UserError('操作が見つかりません。');
     await i.deferUpdate();
