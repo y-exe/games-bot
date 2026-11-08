@@ -8,8 +8,8 @@ import {Economy} from '../src/commands/economy.ts';
 import {bankruptcyBanDays,bankruptcyBanUntil,bankruptcyCooldown,bankruptcyNextDate} from '../src/data/bankruptcy.ts';
 
 test('破産は借金中のみ・禁止期間は借金の額に応じて段階的・14日間→5〜100日のギャンブル禁止が付く',async()=>{
-  assert.deepEqual([-100n,1_000_000n,5_000_000n,10_000_000n,44_312_649_627_603_978n].map(bankruptcyCooldown),[30,30,61,100,100]);
-  assert.deepEqual([-100n,1_000_000n,5_000_000n,10_000_000n,44_312_649_627_603_978n].map(bankruptcyBanDays),[5,5,47,100,100]);
+  assert.deepEqual([-100n,1_000_000n,5_000_000n,100_000_000n,1_000_000_000_000n,10_000_000_000_000_000n,44_312_649_627_603_978n].map(bankruptcyCooldown),[30,30,35,46,77,100,100]);
+  assert.deepEqual([-100n,1_000_000n,5_000_000n,100_000_000n,1_000_000_000_000n,10_000_000_000_000_000n,44_312_649_627_603_978n].map(bankruptcyBanDays),[5,5,12,26,68,100,100]);
   const dir=await mkdtemp(join(tmpdir(),'bankruptcy-')),store=new Store('',dir);
   const now=new Date('2026-10-24T15:00:00Z');
   try {
