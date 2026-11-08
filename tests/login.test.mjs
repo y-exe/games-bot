@@ -75,10 +75,10 @@ test('借金中のログボには生活保護(借金の5〜約10.89%から抽選
   assert.equal(dailyWelfare(20000n,seq([0.5,0.99])),1000n);
   // 失敗: 低め(2〜5%)に外れることもある
   assert.equal(dailyWelfare(10000n,seq([0.10,0])),200n);
-  // 大当たり: 借金の80〜95%を一気に返す(上限なし)
-  assert.equal(dailyWelfare(2000n,seq([0.01,0])),1600n);
+  // 大当たり: 借金の30〜50%を一気に返す(上限なし)
+  assert.equal(dailyWelfare(2000n,seq([0.01,0])),600n);
   const debt=44_312_649_627_603_978n;
-  assert.equal(dailyWelfare(debt,seq([0.01,0])),debt*800n/1000n);
+  assert.equal(dailyWelfare(debt,seq([0.01,0])),debt*300n/1000n);
   const dir=await mkdtemp(join(tmpdir(),'login-welfare-')),store=new Store('',dir);
   const now=new Date('2026-10-24T15:00:00Z');
   try {

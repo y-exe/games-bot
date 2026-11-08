@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {stakeBounds,rollGamble,diceDelta} from '../src/data/gamble.ts';
+import {stakeBounds,rollGamble,skewedStake,diceDelta} from '../src/data/gamble.ts';
 
-test('借金中は最低100ptと最大98%返済の賭け金を使い、少額と割合の境界が連続する',()=>{
+const unused=()=>{throw new Error('賭け金抽選は unit 側で行う');};
+
+test('借金中は最低100ptと最大98%返済の賭け金の範囲を使い、少額と割合の境界が連続する',()=>{
   for(const [balance,min,max]of [
     [0n,100n,100n],[-1n,100n,100n],[-100n,100n,100n],
     [-927n,100n,100n],[-928n,100n,101n],[-999n,100n,108n],[-1000n,100n,108n],
@@ -13,40 +15,57 @@ test('借金中は最低100ptと最大98%返済の賭け金を使い、少額と
   assert.deepEqual(stakeBounds(-huge),{min:huge/20n,max:huge*98n/900n});
 });
 
+test('借金中の賭け金は5〜約10.89%の帯で高めが出やすい',()=>{
+  const tap=(debt,u)=>skewedStake(debt,()=>u);
+  assert.deepEqual([0,0.2,0.6,0.999999].map(u=>tap(1_000_000n,u)),[50_000n,72_000n,93_000n,108_000n]);
+  // 高めが出やすい: 帯の平均は約8.7%(一様なら約7.9%)
+  const seed=start=>{let state=start>>>0;return()=>{state=(state*1664525+1013904223)>>>0;return state/2**32;};};
+  const rand=seed(7);let sum=0;const plays=40000;
+  for(let i=0;i<plays;i++) {
+    const units=[rand(),0,0,0]; // 賭け金抽選・帯1(±1.51〜3.00)・当たり
+    sum+=Number(rollGamble(-1_000_000n,unused,()=>units.shift()).stake)/1_000_000;
+  }
+  const mean=sum/plays;
+  assert.ok(mean>0.085&&mean<0.09,`賭け金の平均が想定外: ${(mean*100).toFixed(3)}%`);
+});
+
 test('借金を大きくしても最高の当たりで高額のプラス残高へ飛び越えない',()=>{
-  const highest=(min,max)=>max;
   for(const debt of [...Array.from({length:10001},(_,i)=>BigInt(i)),1000000n,10n**110n]) {
-    const units=[0,0.999999,0];
-    const result=rollGamble(-debt,highest,()=>units.shift());
+    const units=[0.999999,0,0.999999,0]; // 賭け金最大(10.8%)・当たり(±10倍)
+    const result=rollGamble(-debt,unused,()=>units.shift());
     assert.equal(result.multiplier,1000);
     const bestBalance=-debt+result.delta;
     assert.ok(bestBalance<=900n);
     if(debt>=1000n) {
       assert.ok(result.delta*100n<=debt*98n);
-      assert.ok(debt*98n-result.delta*100n<900n);
       assert.ok(bestBalance<0n);
     }
   }
-  const units=[0,0.999999,0];
-  const jackpot=rollGamble(-1000000n,highest,()=>units.shift());
-  assert.equal(jackpot.multiplier,1000);assert.equal(-1000000n+jackpot.delta,-20008n);
-  const smallUnits=[0,0.999999,0];
-  const comeback=rollGamble(-100n,highest,()=>smallUnits.shift());
+  const units=[0.999999,0,0.999999,0];
+  const jackpot=rollGamble(-1000000n,unused,()=>units.shift());
+  assert.equal(jackpot.multiplier,1000);assert.equal(-1000000n+jackpot.delta,-28000n);
+  const smallUnits=[0,0,0.999999,0]; // 低めに外れた賭け金でも帰還はできる
+  const comeback=rollGamble(-100n,unused,()=>smallUnits.shift());
   assert.equal(-100n+comeback.delta,800n);
 });
 
-test('全残高で同じ倍率分布と当たり抽選を使い、負け側の精算も実際の賭け金と一致する',()=>{
-  for(const balance of [-1000000n,-100n,0n,1n,1000000n])for(const [roll,expected]of [[0,501],[0.019,501],[0.02,301],[0.149,301],[0.15,151],[0.999,151]]) {
-    for(const positive of [false,true]) {
-      const units=[roll,0,positive?0:0.999999];
-      const result=rollGamble(balance,()=>2n,()=>units.shift());
-      assert.equal(result.multiplier,positive?expected:-expected);
-      assert.equal(result.delta,result.stake*BigInt(result.multiplier)/100n-result.stake);
-    }
+test('プラス残高は従来どおりの賭け金抽選、借金中は帯抽選の後で同じ倍率分布で、精算も賭け金と一致する',()=>{
+  const bands=[[0,501],[0.019,501],[0.02,301],[0.149,301],[0.15,151],[0.999,151]];
+  for(const balance of [1n,3n,1000n,1000000n])for(const [roll,expected]of bands) {
+    const units=[roll,0,0];
+    const result=rollGamble(balance,()=>2n,()=>units.shift());
+    assert.equal(result.multiplier,expected);
+    assert.equal(result.delta,result.stake*BigInt(result.multiplier)/100n-result.stake);
   }
-  const units=[0,0.999999,0.999999];
-  const loss=rollGamble(-1000000n,()=>108888n,()=>units.shift());
-  assert.equal(-1000000n+loss.delta,-2197768n);
+  for(const balance of [-1000000n,-100n,0n])for(const [roll,expected]of bands) {
+    const units=[0,roll,0,0.999999]; // 賭け金抽選(低め)→帯→倍率→負け
+    const result=rollGamble(balance,unused,()=>units.shift());
+    assert.equal(result.multiplier,-expected);
+    assert.equal(result.delta,result.stake*BigInt(result.multiplier)/100n-result.stake);
+  }
+  const units=[0.999999,0,0.999999,0.999999];
+  const loss=rollGamble(-1000000n,unused,()=>units.shift());
+  assert.equal(-1000000n+loss.delta,-2188000n);
 });
 
 test('当たり確率は帯ごとに72%・62%・57%付近で、期待値はほぼ0になる',()=>{

@@ -24,8 +24,15 @@ export function stakeBounds(current:bigint) {
   const min=debt/20n,max=debt*98n/900n;
   return {min:min>100n?min:100n,max:max>100n?max:100n};
 }
+
+// 借金中の賭け金: 借金の5〜約10.89%の帯から抽選。高めが出やすく、低めに外れる(=失敗)こともある
+export function skewedStake(debt:bigint,unit:()=>number) {
+  const stake=debt*(50n+BigInt(Math.floor(59*Math.pow(unit(),0.6))))/1000n;
+  return stake>100n?stake:100n;
+}
 export function rollGamble(current:bigint,integer=(min:bigint,max:bigint)=>randomBigInt(min,max),unit=randomUnit) {
-  const {min,max}=stakeBounds(current),stake=integer(min,max);
+  const {min,max}=stakeBounds(current);
+  const stake=current>0n?integer(min,max):skewedStake(-current,unit);
   const roll=unit(),lower=roll<.02?5.01:roll<.15?3.01:1.51,upper=roll<.02?10:roll<.15?5:3;
   const base=lower+(upper-lower)*unit();
   // 当たり確率は帯ごとに変え、期待値を0に保つ(1/2 + 1/(2×帯の平均倍率))
