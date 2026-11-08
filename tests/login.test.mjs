@@ -66,18 +66,29 @@ test('導入前のログボ受取記録も移行し、翌日の免除に利用�
   }finally{await store.close();await rm(dir,{recursive:true,force:true});}
 });
 
-test('借金中のログボには生活保護(借金の10%・最低100・上限1,000)が上乗せされる',async()=>{
-  assert.deepEqual([0n,500n,5000n,20000n,999999n].map(dailyWelfare),[0n,100n,500n,1000n,1000n]);
+test('借金中のログボには生活保護(借金の5〜約10.89%から抽選・失敗あり・まれに大当たり)が上乗せされる',async()=>{
+  const seq=values=>{const queue=[...values];return()=>queue.length?queue.shift():0;};
+  assert.equal(dailyWelfare(0n),0n);
+  // 通常: 5〜約10.89%から抽選(高めに出やすい)
+  assert.equal(dailyWelfare(5000n,seq([0.5,0.7])),490n);
+  assert.equal(dailyWelfare(500n,seq([0.5,0.5])),100n);
+  assert.equal(dailyWelfare(20000n,seq([0.5,0.99])),1000n);
+  // 失敗: 低め(2〜5%)に外れることもある
+  assert.equal(dailyWelfare(10000n,seq([0.10,0])),200n);
+  // 大当たり: 借金の80〜95%を一気に返す(上限なし)
+  assert.equal(dailyWelfare(2000n,seq([0.01,0])),1600n);
+  const debt=44_312_649_627_603_978n;
+  assert.equal(dailyWelfare(debt,seq([0.01,0])),debt*800n/1000n);
   const dir=await mkdtemp(join(tmpdir(),'login-welfare-')),store=new Store('',dir);
   const now=new Date('2026-10-24T15:00:00Z');
   try {
     await store.initialize();
     await store.reward('seed',{'1':-5000n,'2':-20000n,'3':-500n,'4':1000n});
-    const small=await store.login('3','999',now);
+    const small=await store.login('3','999',now,undefined,seq([0.5,0.5]));
     assert.equal(small.welfare,100n);assert.equal(small.balance,-500n+100n+50n);
-    const standard=await store.login('1','999',now);
-    assert.equal(standard.welfare,500n);assert.equal(standard.balance,-5000n+500n+50n);
-    const capped=await store.login('2','999',now);
+    const standard=await store.login('1','999',now,undefined,seq([0.5,0.7]));
+    assert.equal(standard.welfare,490n);assert.equal(standard.balance,-5000n+490n+50n);
+    const capped=await store.login('2','999',now,undefined,seq([0.5,0.99]));
     assert.equal(capped.welfare,1000n);assert.equal(capped.balance,-20000n+1000n+40n);
     const positive=await store.login('4','999',now);
     assert.equal(positive.welfare,0n);assert.equal(positive.balance,1000n+60n);

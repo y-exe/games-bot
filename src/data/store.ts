@@ -208,13 +208,13 @@ export class Store {
       return count;
     });
   }
-  async login(id: string, botId: string, now = new Date(), cohort?: string[]) {
+  async login(id: string, botId: string, now = new Date(), cohort?: string[], rng: () => number = Math.random) {
     await this.wealthTax(botId,now);
     return this.accounts([id], async(a,c)=>{
       const user=a.get(id)!; const today=jstDate(now);
       const taxExemptDate=jstDate(nextLoginTime(now));
       const rank=user.newAccount?-1:await this.rankIn(c,id,botId,cohort);
-      const welfare=user.points<0n?dailyWelfare(-user.points):0n;
+      const welfare=user.points<0n?dailyWelfare(-user.points,rng):0n;
       if(user.lastLogin===today)return { received:false, points:0n, days:user.consecutive, balance:user.points,rank,taxExemptDate,welfare:0n };
       user.consecutive=loginDay(user.lastLogin,user.consecutive,now);
       const points=loginReward(user.consecutive,rank);
