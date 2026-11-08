@@ -143,7 +143,7 @@ export class Economy {
       const count=account?.gambleDate===jstDate()?account.gambleCount:0;
       if(balance>0n&&count>=5)throw new UserError('今日は5回プレイ済みです。betで遊べます。');
       const {min,max}=stakeBounds(balance),stakeRange=min===max?`${formatAmount(min)}pt`:`${formatAmount(min)}〜${formatAmount(max)}pt`;
-      body=`**現在のポイント** · \`${formatAmount(balance)}pt\`\n**賭け金の範囲** · **${stakeRange}**\n**本日の残り** · ${balance>0n?`**${5-count} / 5回**`:'**無制限（救済措置）**'}\n\n**ギャンブルの仕組み**\n- 賭け金・倍率はランダム。\n- 倍率は **±1.51〜10.00倍**(当たり約71%)。\n- プラス残高は **1日5回**、借金中は **回数無制限**。\n-# 借金中の賭け金は借金の5〜約10.9%の帯から抽選し、高めが出やすい(低めに外れることもある)。\n-# ポイント変動 = 賭け金 × 倍率 − 賭け金`;
+      body=`**現在のポイント** · \`${formatAmount(balance)}pt\`\n**賭け金の範囲** · **${stakeRange}**\n**本日の残り** · ${balance>0n?`**${5-count} / 5回**`:'**無制限（救済措置）**'}\n\n**ギャンブルの仕組み**\n- 賭け金・倍率はランダム。\n- 倍率は **±1.51〜10.00倍**(当たり約71%)。\n- プラス残高は **1日5回**、借金中は **回数無制限**。\n-# 借金中の賭け金は借金の5〜12.5%の帯から抽選し、高めが出やすい(低めに外れることもある)。\n-# ポイント変動 = 賭け金 × 倍率 − 賭け金`;
     } else {
       const balance=await this.store.balance(ctx.user.id);
       if(balance>=0n)throw new UserError('借金していないので破産できません。');

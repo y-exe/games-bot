@@ -21,13 +21,14 @@ export function multiplierCents(value:number) {
 export function stakeBounds(current:bigint) {
   if(current>0n)return {min:current/3n||1n,max:current};
   const debt=-current;
-  const min=debt/20n,max=debt*98n/900n;
+  const min=debt/20n,max=debt/8n;
   return {min:min>100n?min:100n,max:max>100n?max:100n};
 }
 
-// 借金中の賭け金: 借金の5〜約10.89%の帯から抽選。高めが出やすく、低めに外れる(=失敗)こともある
+// 借金中の賭け金: 借金の5〜12.5%の帯から抽選。高めが出やすく、低めに外れる(=失敗)こともある。
+// ±10倍の大当たりでは借金がほぼ0に戻る(飛び越えの剰余は借金の12.5%まで)。
 export function skewedStake(debt:bigint,unit:()=>number) {
-  const stake=debt*(50n+BigInt(Math.floor(59*Math.pow(unit(),0.6))))/1000n;
+  const stake=debt*(50n+BigInt(Math.round(75*Math.pow(unit(),0.6))))/1000n;
   return stake>100n?stake:100n;
 }
 export function rollGamble(current:bigint,integer=(min:bigint,max:bigint)=>randomBigInt(min,max),unit=randomUnit) {
