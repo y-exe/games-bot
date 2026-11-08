@@ -29,21 +29,28 @@ test('借金中の賭け金は5〜12.5%の帯で高めが出やすい',()=>{
   assert.ok(mean>0.094&&mean<0.1,`賭け金の平均が想定外: ${(mean*100).toFixed(3)}%`);
 });
 
-test('最高の当たりで借金はほぼ0に戻せるが、プラス側は借金の12.5%までで止まる',()=>{
+test('借金中は倍率が完済に必要な上限に制限され、プラス側には飛び越えない',()=>{
   for(const debt of [...Array.from({length:10001},(_,i)=>BigInt(i)),1000000n,10n**110n]) {
-    const units=[0.999999,0,0.999999,0]; // 賭け金最大(12.5%)・当たり(±10倍)
+    const units=[0.999999,0,0.999999,0]; // 賭け金最大(12.5%)・当たり(帯上限)
     const result=rollGamble(-debt,unused,()=>units.shift());
-    assert.equal(result.multiplier,1000);
-    const bestBalance=-debt+result.delta;
-    if(debt<800n)assert.ok(bestBalance<=900n); // 賭け金が100pt刻みの領域
-    else {assert.ok(bestBalance>=-7n);assert.ok(bestBalance<=debt/8n);}
+    if(debt===0n){assert.equal(result.multiplier,1000);continue;} // 残高0ptは借金扱いではない
+    const cap=Number(debt*100n/result.stake)+100;
+    assert.ok(result.multiplier>0&&result.multiplier<=cap,`倍率${result.multiplier}が完済上限${cap}を超えた`);
+    assert.ok(-debt+result.delta<=0n,'プラス側に飛び越えた');
+    assert.ok(-debt+result.delta>=-(result.stake/100n+1n),'完済上限での残債が大きすぎる');
   }
-  const units=[0.999999,0,0.999999,0];
+  const units=[0.999999,0,0.999999,0]; // 賭け金最大の借金100万pt: 上限は9.00倍で大当たり=ちょうと完済
   const jackpot=rollGamble(-1000000n,unused,()=>units.shift());
-  assert.equal(jackpot.multiplier,1000);assert.equal(-1000000n+jackpot.delta,125000n);
-  const smallUnits=[0,0,0.999999,0]; // 低めに外れた賭け金でも帰還はできる
-  const comeback=rollGamble(-100n,unused,()=>smallUnits.shift());
-  assert.equal(-100n+comeback.delta,800n);
+  assert.equal(jackpot.multiplier,900);assert.equal(-1000000n+jackpot.delta,0n);
+  const smallUnits=[0,0,0.999999,0]; // 低めに外れた賭け金では上限にかからず10倍のまま
+  const partial=rollGamble(-1_000_000n,unused,()=>smallUnits.shift());
+  assert.equal(partial.multiplier,1000);assert.equal(-1_000_000n+partial.delta,-550_000n);
+  const midUnits=[0.5,0,0.999999,0]; // 中間の賭け金でも飛び越えは起きない
+  const mid=rollGamble(-1_000_000n,unused,()=>midUnits.shift());
+  assert.equal(-1_000_000n+mid.delta,-109_000n);
+  const tinyUnits=[0.999999,0,0.999999,0]; // 借金100pt: 全帯が2.00倍に圧縮され、当たりはちょうと完済
+  const tiny=rollGamble(-100n,unused,()=>tinyUnits.shift());
+  assert.equal(tiny.multiplier,200);assert.equal(-100n+tiny.delta,0n);
 });
 
 test('プラス残高は従来どおりの賭け金抽選、借金中は帯抽選の後で同じ倍率分布で、精算も賭け金と一致する',()=>{
@@ -54,15 +61,23 @@ test('プラス残高は従来どおりの賭け金抽選、借金中は帯抽�
     assert.equal(result.multiplier,expected);
     assert.equal(result.delta,result.stake*BigInt(result.multiplier)/100n-result.stake);
   }
-  for(const balance of [-1000000n,-100n,0n])for(const [roll,expected]of bands) {
+  for(const balance of [-1000000n,0n])for(const [roll,expected]of bands) {
     const units=[0,roll,0,0.999999]; // 賭け金抽選(低め)→帯→倍率→負け
     const result=rollGamble(balance,unused,()=>units.shift());
     assert.equal(result.multiplier,-expected);
     assert.equal(result.delta,result.stake*BigInt(result.multiplier)/100n-result.stake);
   }
+  // 借金100ptは完済上限2.00倍の帯に圧縮される(帯3・帯2は上限で潰れる)
+  for(const [roll,expected]of [[0,200],[0.019,200],[0.02,200],[0.149,200],[0.15,151],[0.999,151]]) {
+    const units=[0,roll,0,0.999999];
+    const result=rollGamble(-100n,unused,()=>units.shift());
+    assert.equal(result.multiplier,-expected);
+    assert.equal(result.delta,result.stake*BigInt(result.multiplier)/100n-result.stake);
+  }
   const units=[0.999999,0,0.999999,0.999999];
   const loss=rollGamble(-1000000n,unused,()=>units.shift());
-  assert.equal(-1000000n+loss.delta,-2375000n);
+  // 上限9.00倍に圧縮された帯の大負け: −(9×賭け金+賭け金)
+  assert.equal(-1000000n+loss.delta,-2250000n);
 });
 
 test('当たり確率は帯ごとに72%・62%・57%付近で、期待値はほぼ0になる',()=>{

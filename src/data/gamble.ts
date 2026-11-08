@@ -26,7 +26,7 @@ export function stakeBounds(current:bigint) {
 }
 
 // 借金中の賭け金: 借金の5〜12.5%の帯から抽選。高めが出やすく、低めに外れる(=失敗)こともある。
-// ±10倍の大当たりでは借金がほぼ0に戻る(飛び越えの剰余は借金の12.5%まで)。
+// 倍率の抽選帯は完済に必要な倍率(借金÷賭け金+1倍)を上限に圧縮され、プラス側には飛び越えない。
 export function skewedStake(debt:bigint,unit:()=>number) {
   const stake=debt*(50n+BigInt(Math.round(75*Math.pow(unit(),0.6))))/1000n;
   return stake>100n?stake:100n;
@@ -34,10 +34,13 @@ export function skewedStake(debt:bigint,unit:()=>number) {
 export function rollGamble(current:bigint,integer=(min:bigint,max:bigint)=>randomBigInt(min,max),unit=randomUnit) {
   const {min,max}=stakeBounds(current);
   const stake=current>0n?integer(min,max):skewedStake(-current,unit);
-  const roll=unit(),lower=roll<.02?5.01:roll<.15?3.01:1.51,upper=roll<.02?10:roll<.15?5:3;
+  const roll=unit();
+  // 借金中は完済に必要な倍率(借金÷賭け金+1倍,セント精度)を上限に帯を圧縮し、プラス側に飛び越えない
+  const cap=current<0n?Number((-current)*100n/stake)+100:Number.POSITIVE_INFINITY;
+  const upper=Math.min(roll<.02?10:roll<.15?5:3,cap/100),lower=Math.min(roll<.02?5.01:roll<.15?3.01:1.51,upper);
   const base=lower+(upper-lower)*unit();
   // 当たり確率は帯ごとに変え、期待値を0に保つ(1/2 + 1/(2×帯の平均倍率))
-  const winRate=roll<.02?.5666:roll<.15?.6248:.7217;
+  const winRate=0.5+1/(lower+upper);
   const sign=unit()<winRate?1:-1;
   const multiplier=multiplierCents(base*sign);
   return {stake,multiplier,delta:stake*BigInt(multiplier)/100n-stake};
