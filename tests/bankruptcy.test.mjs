@@ -5,10 +5,11 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {Store} from '../src/data/store.ts';
 import {Economy} from '../src/commands/economy.ts';
-import {bankruptcyBanUntil,bankruptcyCooldown,bankruptcyNextDate} from '../src/data/bankruptcy.ts';
+import {bankruptcyBanDays,bankruptcyBanUntil,bankruptcyCooldown,bankruptcyNextDate} from '../src/data/bankruptcy.ts';
 
-test('破産は借金中のみ・クールダウンは借金の額に応じて30〜100日・14日間のギャンブル禁止が付く',async()=>{
+test('破産は借金中のみ・禁止期間は借金の額に応じて段階的・14日間→5〜100日のギャンブル禁止が付く',async()=>{
   assert.deepEqual([-100n,1_000_000n,5_000_000n,10_000_000n,44_312_649_627_603_978n].map(bankruptcyCooldown),[30,30,61,100,100]);
+  assert.deepEqual([-100n,1_000_000n,5_000_000n,10_000_000n,44_312_649_627_603_978n].map(bankruptcyBanDays),[5,5,47,100,100]);
   const dir=await mkdtemp(join(tmpdir(),'bankruptcy-')),store=new Store('',dir);
   const now=new Date('2026-10-24T15:00:00Z');
   try {
@@ -17,14 +18,14 @@ test('破産は借金中のみ・クールダウンは借金の額に応じて30
     await assert.rejects(store.bankrupt('2',now),/借金していない/);
     const result=await store.bankrupt('1',now);
     assert.equal(result.debt,-44312649627603978n);
-    assert.equal(result.times,1);assert.equal(result.lastDate,'2026-10-25');assert.equal(result.cooldownDays,100);
-    assert.equal(result.nextDate,'2027-02-02');
+    assert.equal(result.times,1);assert.equal(result.lastDate,'2026-10-25');assert.equal(result.cooldownDays,100);assert.equal(result.banDays,100);
+    assert.equal(result.nextDate,'2027-02-02');assert.equal(result.banUntil,'2027-02-02');
     assert.equal(await store.balance('1'),0n);
-    assert.equal(bankruptcyBanUntil('2026-10-25'),'2026-11-08');
     await store.reward('again',{'1':-100n});
     await assert.rejects(store.bankrupt('1',now),/再破産できません/);
     const second=await store.bankrupt('1',new Date(now.getTime()+101*86_400_000));
-    assert.equal(second.times,2);assert.equal(second.cooldownDays,30);assert.equal(second.nextDate,'2027-03-05');
+    assert.equal(second.times,2);assert.equal(second.cooldownDays,30);assert.equal(second.banDays,5);
+    assert.equal(second.nextDate,'2027-03-05');assert.equal(second.banUntil,'2027-02-08');
     assert.equal(await store.balance('1'),0n);
   } finally {await store.close();await rm(dir,{recursive:true,force:true});}
 });
@@ -53,6 +54,6 @@ test('破産コマンドは借金がないと拒否し、借金中なら確認�
     store.balance=async()=>-5000n;
     await economy.run('bankrupt',ctx);
     const text=JSON.stringify(payload);
-    assert.match(text,/自己破産の確認/);assert.match(text,/破産する/);assert.match(text,/14日間/);
+    assert.match(text,/自己破産の確認/);assert.match(text,/破産する/);assert.match(text,/5日間.*ギャンブル・bet.*30日間.*再び破産/);
   } finally {economy.close();}
 });

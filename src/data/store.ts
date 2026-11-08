@@ -9,7 +9,7 @@ import {transferFee} from './money.js';
 import {rankingLimit,type RankingEntry,type RankingUserRecord} from './rankings.js';
 import {dailyWealthTax,wealthTaxThreshold} from './wealth-tax.js';
 import {dailyWelfare} from './welfare.js';
-import {bankruptcyCooldown,bankruptcyNextDate} from './bankruptcy.js';
+import {bankruptcyBanUntil,bankruptcyBanDays,bankruptcyCooldown,bankruptcyNextDate} from './bankruptcy.js';
 import {TextTemplates,textTemplateSchema} from './text-templates.js';
 export {jstDate} from './login.js';
 
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS games_bot_events(event_id text PRIMARY KEY, created_a
 CREATE TABLE IF NOT EXISTS games_bot_sessions(session_id text PRIMARY KEY, payload text NOT NULL);
 CREATE TABLE IF NOT EXISTS games_bot_user_profiles(user_id numeric(20,0) PRIMARY KEY, display_name text NOT NULL, username text NOT NULL, fetched_at text NOT NULL);
 CREATE TABLE IF NOT EXISTS games_bot_tax_exemptions(user_id numeric(20,0) NOT NULL, tax_date date NOT NULL, PRIMARY KEY(user_id,tax_date));
-CREATE TABLE IF NOT EXISTS games_bot_bankruptcy(user_id numeric(20,0) PRIMARY KEY, times integer NOT NULL, last_date date NOT NULL, cooldown_days smallint NOT NULL DEFAULT 30);
+CREATE TABLE IF NOT EXISTS games_bot_bankruptcy(user_id numeric(20,0) PRIMARY KEY, times integer NOT NULL, last_date date NOT NULL, ban_days smallint NOT NULL DEFAULT 5, cooldown_days smallint NOT NULL DEFAULT 30);
 ${textTemplateSchema}
 `;
 function dateString(value: unknown): string | null { return value instanceof Date ? value.toISOString().slice(0,10) : value ? String(value).slice(0,10) : null; }
@@ -59,6 +59,9 @@ export class Store {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='games_bot_bankruptcy' AND column_name='cooldown_days') THEN
           ALTER TABLE games_bot_bankruptcy ADD COLUMN cooldown_days smallint NOT NULL DEFAULT 30;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='games_bot_bankruptcy' AND column_name='ban_days') THEN
+          ALTER TABLE games_bot_bankruptcy ADD COLUMN ban_days smallint NOT NULL DEFAULT 5;
+        END IF;
       END $$;`); }
     else {
       if(settings.production)throw new UserError('本番起動にはDATABASE_URLが必要です。');
@@ -72,6 +75,9 @@ export class Store {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='games_bot_bankruptcy' AND column_name='cooldown_days') THEN
           ALTER TABLE games_bot_bankruptcy ADD COLUMN cooldown_days smallint NOT NULL DEFAULT 30;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='games_bot_bankruptcy' AND column_name='ban_days') THEN
+          ALTER TABLE games_bot_bankruptcy ADD COLUMN ban_days smallint NOT NULL DEFAULT 5;
         END IF;
       END $$;`);
       if(existsSync(join(this.dir,'bot.sqlite'))) {
@@ -219,8 +225,8 @@ export class Store {
   }
   async allowedChannels() { return this.transaction(async c => new Set((await c.query('SELECT channel_id FROM games_bot_allowed_channels')).map(r=>String(r.channel_id)))); }
   async bankruptcyLast(id:string) {
-    const [row]=await this.transaction(c=>c.query('SELECT last_date,cooldown_days FROM games_bot_bankruptcy WHERE user_id=$1',[id]));
-    return row?{lastDate:String(row.last_date).slice(0,10),cooldownDays:Number(row.cooldown_days)}:undefined;
+    const [row]=await this.transaction(c=>c.query('SELECT last_date,ban_days,cooldown_days FROM games_bot_bankruptcy WHERE user_id=$1',[id]));
+    return row?{lastDate:String(row.last_date).slice(0,10),banDays:Number(row.ban_days),cooldownDays:Number(row.cooldown_days)}:undefined;
   }
   async bankrupt(id:string,now=new Date()) {
     const today=jstDate(now);
@@ -228,7 +234,7 @@ export class Store {
       const user=a.get(id)!;
       if(user.points>=0n)throw new UserError('借金していないので破産できません。');
       const debt=user.points;
-      const cooldownDays=bankruptcyCooldown(-debt);
+      const banDays=bankruptcyBanDays(-debt),cooldownDays=bankruptcyCooldown(-debt);
       const [row]=await c.query('SELECT last_date,cooldown_days FROM games_bot_bankruptcy WHERE user_id=$1',[id]);
       const last=row?{lastDate:String(row.last_date).slice(0,10),cooldownDays:Number(row.cooldown_days)}:undefined;
       if(last){
@@ -236,8 +242,8 @@ export class Store {
         if(today<next)throw new UserError(`前回の破産(${last.lastDate})からしばらくは再破産できません。${next}以降に実行してください。`);
       }
       user.points=0n; user.consecutive=0;
-      const [saved]=await c.query('INSERT INTO games_bot_bankruptcy(user_id,times,last_date,cooldown_days) VALUES($1,1,$2,$3) ON CONFLICT(user_id) DO UPDATE SET times=games_bot_bankruptcy.times+1,last_date=$2,cooldown_days=$3 RETURNING times',[id,today,cooldownDays]);
-      return {debt,times:Number(saved!.times),lastDate:today,cooldownDays,nextDate:bankruptcyNextDate(today,cooldownDays)};
+      const [saved]=await c.query('INSERT INTO games_bot_bankruptcy(user_id,times,last_date,ban_days,cooldown_days) VALUES($1,1,$2,$3,$4) ON CONFLICT(user_id) DO UPDATE SET times=games_bot_bankruptcy.times+1,last_date=$2,ban_days=$3,cooldown_days=$4 RETURNING times',[id,today,banDays,cooldownDays]);
+      return {debt,times:Number(saved!.times),lastDate:today,banDays,cooldownDays,banUntil:bankruptcyBanUntil(today,banDays),nextDate:bankruptcyNextDate(today,cooldownDays)};
     });
   }
   async toggleChannel(id: string) {
