@@ -18,7 +18,7 @@ import {Operations} from './services/operations.js';
 import { Context, positiveAmount } from './commands/context.js';
 import { commandNames } from './commands/definitions.js';
 import {parseLegacy} from './commands/legacy.js';
-import { utility, handleSummary,handleTimeHelp,handleTimeSwitch,handleTenkiSwitch,handleRateSwitch } from './commands/utility.js';
+import { utility, handleSummary,handleSummaryAsk,handleTimeHelp,handleTimeSwitch,handleTenkiSwitch,handleRateSwitch } from './commands/utility.js';
 import { media } from './commands/media.js';
 import { MediaWorker } from './services/media.js';
 import { taxScheduler } from './services/tax.js';
@@ -106,6 +106,7 @@ async function interaction(i:Interaction) {
       else if(i.isButton()&&i.customId.startsWith('prompt:'))await openPrompt(i);
       else throw new UserError('この操作は期限切れです。コマンドを開き直してください。');
     } else if(i.isModalSubmit()&&i.customId.startsWith('prompt:'))await handlePromptSubmit(i,{client,allowed,execute});
+    else if(i.isModalSubmit()&&i.customId.startsWith('summary:'))await handleSummaryAsk(i);
     else if(i.isModalSubmit()&&i.customId.startsWith('txt:')) {
       if(!allowed.has(i.channelId??''))throw new UserError('このチャンネルではBot利用が停止されています。');
       await textStudio.handle(i);

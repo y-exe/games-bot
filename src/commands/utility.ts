@@ -1,6 +1,6 @@
 import {help} from './help.js';
 import {UserError} from '../errors.js';
-import { PermissionFlagsBits, type ButtonInteraction, MessageFlags, ButtonStyle,ButtonBuilder } from 'discord.js';
+import { PermissionFlagsBits, type ButtonInteraction, type ModalSubmitInteraction, ComponentType, MessageFlags, ButtonStyle,ButtonBuilder, type SelectMenuModalData } from 'discord.js';
 import { card, row, button } from '../ui/cards.js';
 import { emoji } from '../ui/emojis.js';
 import {publicBadgeNames,accountAgeBadge,serverBoostBadge} from '../ui/badges.js';
@@ -10,8 +10,8 @@ import { Context } from './context.js';
 import {trackInteractionButtons} from '../ui/button-expiry.js';
 import {request, cachedFetch, weather, type Forecast } from '../services/network.js';
 import { Store } from '../data/store.js';
-import { conversationSummary,parseSummaryMinutes } from '../services/conversation.js';
-import {summaryCard,summaryAction} from '../ui/summary.js';
+import { conversationSummary,conversationAnswer,parseSummaryMinutes } from '../services/conversation.js';
+import {summaryCard,summaryAction,summaryAskModal,summaryAnswerCard} from '../ui/summary.js';
 import {commandSyncApi,syncSlashCommands} from '../services/command-sync.js';
 import {settings} from '../config.js';
 import {suddenDeath} from '../ui/sudden-death.js';
@@ -152,6 +152,7 @@ export async function utility(name:string,ctx:Context,store:Store,allowed:Set<st
 const summaryUpdates=new Set<string>();
 export async function handleSummary(i:ButtonInteraction) {
   const action=summaryAction(i.customId,i.user.id);
+  if(action.ask)return i.showModal(summaryAskModal(i.user.id,action.minutes,action.at??Date.now()));
   if(!i.inCachedGuild()||!i.channel||!('messages' in i.channel))throw new UserError('このチャンネルでは履歴を取得できません。');
   if(!i.guild.members.me?.permissionsIn(i.channelId).has(PermissionFlagsBits.ReadMessageHistory))throw new UserError('Botに「メッセージ履歴を読む」権限を付与してください。');
   if(summaryUpdates.has(i.message.id))throw new UserError('この要約を更新中です。表示が変わるまで少しお待ちください。');
@@ -160,4 +161,19 @@ export async function handleSummary(i:ButtonInteraction) {
     await i.deferUpdate();
     trackInteractionButtons(i,await i.editReply(summaryCard(await conversationSummary(i.channel,action.detailed,action.minutes,action.at),i.user.id)));
   } finally {summaryUpdates.delete(i.message.id);}
+}
+
+export async function handleSummaryAsk(i:ModalSubmitInteraction) {
+  const action=summaryAction(i.customId,i.user.id);
+  if(!action.ask)throw new UserError('要約を開き直してください。');
+  const question=i.fields.getTextInputValue('topic').trim();
+  if(!question)throw new UserError('質問を入力してください。');
+  const range=i.fields.fields.find(field=>field.customId==='range');
+  const minutes=parseSummaryMinutes(range?.type===ComponentType.StringSelect?(range as SelectMenuModalData).values[0]:action.minutes);
+  if(!i.inCachedGuild()||!i.channel||!i.channelId||!('messages' in i.channel))throw new UserError('このチャンネルでは履歴を取得できません。');
+  if(!i.guild.members.me?.permissionsIn(i.channelId).has(PermissionFlagsBits.ReadMessageHistory))throw new UserError('Botに「メッセージ履歴を読む」権限を付与してください。');
+  const at=action.at??Date.now();
+  await i.deferReply({flags:MessageFlags.Ephemeral});
+  const answer=await conversationAnswer(i.channel,minutes,at,question);
+  trackInteractionButtons(i,await i.editReply(summaryAnswerCard(question,answer,i.user.id,minutes,at)));
 }
